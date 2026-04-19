@@ -15,10 +15,43 @@ async function db({ table, method = "GET", body, filters = "" }) {
   } catch { return null; }
 }
 
-const MSG_CORRECT = ["¡Lo lograste! 🔥","¡Crack total! 🎯","¡Eso es, sabías! ⭐","¡Perfecto! 🎉","¡Brillante! 💫","¡Ahí está! 🚀","¡Qué nivel! 🏆"];
-const MSG_WRONG   = ["¡Casi! Seguís intentando 💪","¡Buen intento! Una más 🔥","¡No te rindás, ya casi! 😤","¡Eso, a intentarlo de nuevo! 🚀","¡Falta poco, pensalo de nuevo! 🤔","¡Vas bien, seguí! 💡"];
-const MSG_REFLECT = ["¿Será que siempre se puede resolver de la misma manera?","¿Este truco funcionaría con otros números?","¿Cómo se lo explicarías a un amigo?","¿Qué tienen en común todos estos ejercicios?","¿Podrías inventar una cuenta parecida?","¿Siempre que hay ceros funciona igual?","¿Por qué creés que funciona este método?"];
+// ─── MESSAGES ──────────────────────────────────────────────────────────────
+const MSG_WRONG = [
+  "Mmm… probemos pensarlo de otra forma, ¿dale?",
+  "¡No pasa! ¿Qué parte te parece más fácil de resolver primero?",
+  "¿Podés separar el número para hacerlo más simple?",
+  "¿Hay algo que ya sepas que te pueda ayudar acá?",
+  "Volvé un pasito atrás… ¿qué sí sabés hacer?",
+  "¿Qué pasaría si este número fuera más chico?",
+  "Intentá con una parte y después seguimos 👇",
+  "¿Te animás a explicarme qué pensaste?",
+  "Casi casi… revisá ese detalle 👀",
+  "Pensalo como si se lo explicaras a alguien más",
+];
 
+const MSG_CORRECT = [
+  "¡Bien ahí! 🔥",
+  "¡Excelente! ¿Contame cómo lo pensaste?",
+  "¡Muy bien! ¿Siempre funcionará así?",
+  "¡Genial! ¿Podrías hacerlo con otro número?",
+  "¡Perfecto! ¿Hay otra forma de resolverlo?",
+  "¡Crack! 😎 ¿Te animás a explicarlo?",
+  "¡Muy bien! ¿Qué parte te resultó más fácil?",
+  "¡Buenísimo! ¿Cómo lo harías más rápido?",
+  "¡Excelente! Probemos uno un poquito más difícil…",
+  "¡La rompiste! 💥 ¿Qué aprendiste acá?",
+];
+
+// Solo aparecen en ejercicio 5 y 10 del nivel
+const MSG_REFLECT = [
+  "¿Cómo llegaste a ese resultado?",
+  "¿Hay otra manera de hacerlo?",
+  "¿Esto siempre va a dar bien o depende del número?",
+  "¿Cómo se lo explicarías a un compañero?",
+  "¿Qué te hizo darte cuenta de la respuesta?",
+];
+
+// ─── LEVELS ────────────────────────────────────────────────────────────────
 const LEVELS = [
   { id:0, name:"Nivel 1", emoji:"🌱", subject:"Multiplicación", color:"#4F8EF7" },
   { id:1, name:"Nivel 2", emoji:"🌿", subject:"División",       color:"#A855F7" },
@@ -33,7 +66,11 @@ function generateProblem(li) {
     const base = a/pow;
     return {
       expr:`${a} × ${b}`, answer:String(a*b), isOp:false,
-      guides:[`¿Cuánto es ${base} × ${b} (sin los ceros)?`,`¿Cuántos ceros tiene el ${a}?`,`Entonces si ${base}×${b}=${base*b} y el ${a} tiene ${z} cero${z>1?"s":""}... ¿qué pasa?`]
+      guides:[
+        `¿Cuánto es ${base} × ${b} (sin los ceros)?`,
+        `¿Cuántos ceros tiene el ${a}?`,
+        `Entonces si ${base}×${b}=${base*b} y el ${a} tiene ${z} cero${z>1?"s":""}... ¿qué pasa?`,
+      ]
     };
   }
   if (li === 1) {
@@ -42,7 +79,11 @@ function generateProblem(li) {
     const dividend = q*d*pow;
     return {
       expr:`${dividend} ÷ ${d}`, answer:String(q*pow), isOp:false,
-      guides:[`¿Cuánto es ${q*d} ÷ ${d} (sin los ceros)?`,`¿Cuántos ceros tiene el ${dividend}?`,`Entonces si ${q*d}÷${d}=${q} y el ${dividend} tiene ${z} cero${z>1?"s":""}... ¿qué creés que pasa?`]
+      guides:[
+        `¿Cuánto es ${q*d} ÷ ${d} (sin los ceros)?`,
+        `¿Cuántos ceros tiene el ${dividend}?`,
+        `Entonces si ${q*d}÷${d}=${q} y el ${dividend} tiene ${z} cero${z>1?"s":""}... ¿qué creés que pasa?`,
+      ]
     };
   }
   if (li === 2) {
@@ -53,17 +94,23 @@ function generateProblem(li) {
     const b = pick(divisors), result = a/b;
     return {
       expr:`${a}  ◻  ${b} = ${result}`, answer:"÷", isOp:true,
-      guides:[`Si el resultado (${result}) es más chico que ${a}, ¿qué operación achica números?`,`¿Cuántas veces entra ${b} en ${a}?`,`Probá: ¿${b} × ${result} = ${a}?`]
+      guides:[
+        `Si el resultado (${result}) es más chico que ${a}, ¿qué operación achica números?`,
+        `¿Cuántas veces entra ${b} en ${a}?`,
+        `Probá: ¿${b} × ${result} = ${a}?`,
+      ]
     };
   }
   return generateProblem(Math.random()>0.5?0:1);
 }
 
+// ─── STYLES ────────────────────────────────────────────────────────────────
 const card = { background:"white", borderRadius:28, padding:"36px 30px", maxWidth:480, width:"100%", boxShadow:"0 20px 60px rgba(0,0,0,0.15)" };
 const inp  = { width:"100%", padding:"13px 16px", borderRadius:14, border:"2px solid #e2e8f0", fontSize:16, fontFamily:"inherit", outline:"none", boxSizing:"border-box", marginBottom:12 };
 const btn  = (bg, ex={}) => ({ padding:"13px 20px", borderRadius:16, border:"none", background:bg, color:"white", fontWeight:800, fontSize:15, cursor:"pointer", fontFamily:"inherit", ...ex });
 const pg   = (bg="linear-gradient(135deg,#667eea,#764ba2)") => ({ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center", background:bg, padding:20, fontFamily:"'Nunito',sans-serif" });
 
+// ─── HOME ──────────────────────────────────────────────────────────────────
 function Home({ go }) {
   return (
     <div style={pg()}>
@@ -78,6 +125,7 @@ function Home({ go }) {
   );
 }
 
+// ─── TEACHER LOGIN ─────────────────────────────────────────────────────────
 function TeacherLogin({ go, setTeacher }) {
   const [code,setCode]=useState(""), [err,setErr]=useState("");
   const login = () => { if(code.trim().toUpperCase()===TEACHER_CODE){setTeacher({name:"Dani"});go("teacher-dashboard");}else setErr("Código incorrecto."); };
@@ -96,6 +144,7 @@ function TeacherLogin({ go, setTeacher }) {
   );
 }
 
+// ─── TEACHER DASHBOARD ─────────────────────────────────────────────────────
 function TeacherDashboard({ go }) {
   const [classes,setClasses]=useState([]), [selected,setSelected]=useState(null);
   const [results,setResults]=useState([]), [reflections,setRef]=useState([]);
@@ -173,7 +222,7 @@ function TeacherDashboard({ go }) {
               </div>
               <div style={{ display:"flex",gap:8,marginBottom:20 }}>
                 {["results","reflections"].map(t=>(
-                  <button key={t} onClick={()=>setTab(t)} style={{ ...btn(tab===t?"#667eea":"#f1f5f9"),color:tab===t?"white":"#64748b",flex:1,padding:"10px" }}>
+                  <button key={t} onClick={()=>setTab(t)} style={{ ...btn(tab===t?"#667eea":"#f1f5f9"),color:tab===t?"white":"#64748b",flex:1,padding:"10px",position:"relative" }}>
                     {t==="results"?"📈 Resultados":"💭 Reflexiones"}{t==="reflections"&&reflections.length>0&&<span style={{ background:"#ef4444",color:"white",borderRadius:99,padding:"2px 7px",fontSize:11,marginLeft:6 }}>{reflections.length}</span>}
                   </button>
                 ))}
@@ -217,6 +266,7 @@ function TeacherDashboard({ go }) {
   );
 }
 
+// ─── STUDENT ENTER ─────────────────────────────────────────────────────────
 function StudentEnter({ go, setStudent }) {
   const [name,setName]=useState(""), [code,setCode]=useState(""), [err,setErr]=useState(""), [loading,setLoading]=useState(false);
   const enter = async () => {
@@ -241,40 +291,63 @@ function StudentEnter({ go, setStudent }) {
   );
 }
 
+// ─── GAME ──────────────────────────────────────────────────────────────────
 function Game({ student, go }) {
-  const [li,setLi]=useState(0);
-  const [prob,setProb]=useState(()=>generateProblem(0));
-  const [answer,setAnswer]=useState("");
-  const [phase,setPhase]=useState("question");
-  const [guideStep,setGuideStep]=useState(0);
-  const [guideAns,setGuideAns]=useState("");
-  const [wrongMsg,setWrongMsg]=useState("");
-  const [correctMsg,setCorrectMsg]=useState("");
-  const [reflectQ,setReflectQ]=useState("");
-  const [reflectAns,setReflectAns]=useState("");
-  const [reflectSaved,setReflectSaved]=useState(false);
-  const [score,setScore]=useState(0);
-  const [correct,setCorrect]=useState(0);
-  const [wrong,setWrong]=useState(0);
-  const [cil,setCil]=useState(0);
-  const [finished,setFinished]=useState(false);
-  const [saving,setSaving]=useState(false);
-  const inputRef=useRef(null);
+  const [li,setLi]               = useState(0);
+  const [prob,setProb]           = useState(()=>generateProblem(0));
+  const [answer,setAnswer]       = useState("");
+  const [phase,setPhase]         = useState("question");
+  const [guideStep,setGuideStep] = useState(0);
+  const [guideAns,setGuideAns]   = useState("");
+  const [wrongMsg,setWrongMsg]   = useState("");
+  const [correctMsg,setCorrectMsg] = useState("");
+  const [reflectQ,setReflectQ]   = useState("");
+  const [showReflect,setShowReflect] = useState(false);
+  const [reflectAns,setReflectAns] = useState("");
+  const [reflectSaved,setReflectSaved] = useState(false);
+  const [score,setScore]         = useState(0);
+  const [correct,setCorrect]     = useState(0);
+  const [wrong,setWrong]         = useState(0);
+  // totalCorrect tracks across all levels for reflection trigger
+  const totalCorrect             = useRef(0);
+  const [cil,setCil]             = useState(0);
+  const [finished,setFinished]   = useState(false);
+  const [saving,setSaving]       = useState(false);
+  const inputRef                 = useRef(null);
 
   useEffect(()=>{setTimeout(()=>inputRef.current?.focus(),200);},[phase,prob]);
 
-  const newProb = (lIdx) => { setProb(generateProblem(lIdx)); setAnswer(""); setPhase("question"); setGuideStep(0); setGuideAns(""); setReflectAns(""); setReflectSaved(false); };
+  const newProb = (lIdx) => {
+    setProb(generateProblem(lIdx));
+    setAnswer(""); setPhase("question");
+    setGuideStep(0); setGuideAns("");
+    setReflectAns(""); setReflectSaved(false); setShowReflect(false);
+  };
 
   const checkAnswer = (val) => {
     const a = (val||answer).trim();
     if(!a) return;
     if(a===prob.answer){
-      setCorrectMsg(pick(MSG_CORRECT)); setReflectQ(pick(MSG_REFLECT));
+      totalCorrect.current += 1;
+      const tc = totalCorrect.current;
+      // Show reflection only at exercise 5 and 10 of each level
+      const shouldReflect = tc%5===0;
+      setCorrectMsg(pick(MSG_CORRECT));
       setScore(s=>s+10); setCorrect(c=>c+1);
-      setCil(c=>{ const n=c+1; if(n>=5){ if(li<3) setTimeout(()=>{setLi(l=>l+1);setCil(0);newProb(li+1);},1800); else setTimeout(finish,1800); } return n; });
+      if(shouldReflect){ setReflectQ(pick(MSG_REFLECT)); setShowReflect(true); }
+      setCil(c=>{
+        const n=c+1;
+        if(n>=5){
+          if(li<3) setTimeout(()=>{setLi(l=>l+1);setCil(0);newProb(li+1);},shouldReflect?0:1800);
+          else setTimeout(finish,shouldReflect?0:1800);
+        }
+        return n;
+      });
       setPhase("correct");
     } else {
-      setWrongMsg(pick(MSG_WRONG)); setWrong(c=>c+1); setPhase("wrong");
+      setWrongMsg(pick(MSG_WRONG));
+      setWrong(c=>c+1);
+      setPhase("wrong");
     }
   };
 
@@ -282,6 +355,13 @@ function Game({ student, go }) {
     if(!reflectAns.trim()) return;
     await db({table:"reflections",method:"POST",body:{class_code:student.classCode,student_name:student.name,question:reflectQ,answer:reflectAns}});
     setReflectSaved(true);
+  };
+
+  const handleContinue = () => {
+    if(cil>=5){
+      if(li<3){setLi(l=>l+1);setCil(0);newProb(li+1);}
+      else finish();
+    } else { newProb(li); }
   };
 
   const finish = async () => {
@@ -314,6 +394,7 @@ function Game({ student, go }) {
     <div style={{ minHeight:"100vh",background:`linear-gradient(135deg,${lvl.color}15,${lvl.color}30)`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"'Nunito',sans-serif",transition:"background 0.6s" }}>
       <style>{`@keyframes pop{0%{transform:scale(.85);opacity:0}70%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}`}</style>
 
+      {/* Header */}
       <div style={{ width:"100%",maxWidth:480,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12 }}>
         <div style={{ background:lvl.color,color:"white",borderRadius:14,padding:"7px 16px",fontWeight:800,fontSize:13 }}>{lvl.emoji} {lvl.name} · {lvl.subject}</div>
         <div style={{ display:"flex",gap:8 }}>
@@ -322,6 +403,7 @@ function Game({ student, go }) {
         </div>
       </div>
 
+      {/* Progress */}
       <div style={{ width:"100%",maxWidth:480,marginBottom:12 }}>
         <div style={{ background:"#e2e8f0",borderRadius:99,height:7,overflow:"hidden" }}>
           <div style={{ height:"100%",background:lvl.color,width:`${pct}%`,borderRadius:99,transition:"width 0.4s" }}/>
@@ -331,6 +413,7 @@ function Game({ student, go }) {
 
       <div style={{ ...card,maxWidth:480 }}>
 
+        {/* ── QUESTION ── */}
         {phase==="question"&&(
           <>
             <p style={{ textAlign:"center",color:"#94a3b8",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:16 }}>
@@ -354,69 +437,91 @@ function Game({ student, go }) {
           </>
         )}
 
+        {/* ── WRONG ── */}
         {phase==="wrong"&&(
           <div style={{ animation:"pop 0.3s ease" }}>
-            <div style={{ textAlign:"center",marginBottom:24 }}>
-              <div style={{ fontSize:44,marginBottom:8 }}>💪</div>
-              <p style={{ fontSize:20,fontWeight:900,color:"#f97316",margin:0 }}>{wrongMsg}</p>
+            <div style={{ textAlign:"center",marginBottom:8 }}>
+              <div style={{ fontSize:44,marginBottom:8 }}>🤔</div>
+              <p style={{ fontSize:19,fontWeight:900,color:"#f97316",margin:"0 0 6px",lineHeight:1.4 }}>{wrongMsg}</p>
             </div>
-            <div style={{ display:"flex",gap:10 }}>
+            <div style={{ display:"flex",gap:10,marginTop:20 }}>
               <button onClick={()=>{setPhase("guide");setGuideStep(0);setGuideAns("");}} style={{ ...btn("linear-gradient(135deg,#667eea,#764ba2)"),flex:1 }}>Quiero una guía 💡</button>
               <button onClick={()=>{setAnswer("");setPhase("question");}} style={{ ...btn("#f1f5f9"),flex:1,color:"#475569" }}>Lo intento nuevamente 🔄</button>
             </div>
           </div>
         )}
 
+        {/* ── GUIDE ── */}
         {phase==="guide"&&(
           <div style={{ animation:"pop 0.3s ease" }}>
             <p style={{ textAlign:"center",color:"#94a3b8",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:14 }}>Guía · paso {guideStep+1} de {prob.guides.length}</p>
             <div style={{ background:"#f5f3ff",borderRadius:16,padding:"16px 20px",marginBottom:18,borderLeft:"4px solid #667eea" }}>
               <p style={{ fontSize:17,fontWeight:700,color:"#1e293b",margin:0 }}>{prob.guides[guideStep]}</p>
             </div>
-            <input ref={inputRef} type="text" placeholder="Tu respuesta..." value={guideAns} onChange={e=>setGuideAns(e.target.value)} style={{ ...inp,fontSize:16,fontWeight:700,textAlign:"center" }} onKeyDown={e=>{if(e.key==="Enter"&&guideAns.trim()){if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}else{setPhase("question");setAnswer("");}}}} />
+            <input ref={inputRef} type="text" placeholder="Tu respuesta..." value={guideAns} onChange={e=>setGuideAns(e.target.value)} style={{ ...inp,fontSize:16,fontWeight:700,textAlign:"center" }}
+              onKeyDown={e=>{if(e.key==="Enter"&&guideAns.trim()){if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}else{setPhase("question");setAnswer("");}}}} />
             <div style={{ display:"flex",gap:10 }}>
               <button onClick={()=>{setAnswer("");setPhase("question");}} style={{ ...btn("#f1f5f9"),color:"#475569",flex:1,fontSize:13 }}>Salir de la guía</button>
-              <button onClick={()=>{if(!guideAns.trim())return;if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}else{setPhase("question");setAnswer("");}}} style={{ ...btn("linear-gradient(135deg,#667eea,#764ba2)"),flex:2 }}>
-                {guideStep<prob.guides.length-1?"Siguiente →":"¡Entonces... a intentarlo! 🚀"}
+              <button onClick={()=>{
+                if(!guideAns.trim()) return;
+                if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}
+                else{setPhase("question");setAnswer("");}
+              }} style={{ ...btn("linear-gradient(135deg,#667eea,#764ba2)"),flex:2 }}>
+                {guideStep<prob.guides.length-1?"Siguiente →":"¡Entonces… a intentarlo! 🚀"}
               </button>
             </div>
           </div>
         )}
 
+        {/* ── CORRECT ── */}
         {phase==="correct"&&(
           <div style={{ animation:"pop 0.3s ease" }}>
             <div style={{ textAlign:"center",marginBottom:20 }}>
               <div style={{ fontSize:48,marginBottom:8 }}>🎉</div>
-              <p style={{ fontSize:22,fontWeight:900,color:"#16a34a",margin:0 }}>{correctMsg}</p>
-              <p style={{ fontSize:14,color:"#64748b",marginTop:6 }}>{prob.expr} {!prob.isOp&&`= ${prob.answer}`}</p>
+              <p style={{ fontSize:20,fontWeight:900,color:"#16a34a",margin:0,lineHeight:1.4 }}>{correctMsg}</p>
+              <p style={{ fontSize:13,color:"#64748b",marginTop:6 }}>{prob.expr} {!prob.isOp&&`= ${prob.answer}`}</p>
             </div>
-            <div style={{ background:"#f0fdf4",borderRadius:16,padding:"16px 20px",marginBottom:20,border:"1px solid #bbf7d0" }}>
-              <p style={{ fontSize:15,fontWeight:700,color:"#15803d",margin:"0 0 12px" }}>🤔 {reflectQ}</p>
-              {!reflectSaved
-                ?<>
-                  <textarea placeholder="Escribí tu respuesta... (optativo)" value={reflectAns} onChange={e=>setReflectAns(e.target.value)} style={{ width:"100%",padding:"10px 12px",borderRadius:12,border:"2px solid #86efac",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",resize:"none",minHeight:65,marginBottom:10 }}/>
-                  <div style={{ display:"flex",gap:8 }}>
-                    {reflectAns.trim()&&<button onClick={saveReflection} style={{ ...btn("#16a34a"),flex:1,fontSize:14,padding:"10px" }}>Guardar ✓</button>}
-                    <button onClick={()=>{setAnswer("");newProb(li);}} style={{ ...btn("#f1f5f9"),flex:1,color:"#475569",fontSize:14,padding:"10px" }}>Seguir con el juego →</button>
-                  </div>
-                </>
-                :<>
-                  <div style={{ background:"#dcfce7",borderRadius:12,padding:"12px 16px",textAlign:"center",marginBottom:12 }}>
-                    <p style={{ color:"#15803d",fontWeight:800,margin:"0 0 4px",fontSize:14 }}>✨ ¡Tu respuesta fue guardada!</p>
-                    <p style={{ color:"#16a34a",fontSize:12,margin:0 }}>Tu profe la va a ver después — ¡seguimos jugando!</p>
-                  </div>
-                  <button onClick={()=>{setAnswer("");newProb(li);}} style={{ ...btn(`linear-gradient(135deg,${lvl.color},${lvl.color}bb)`),width:"100%",fontSize:16 }}>Seguir con el juego →</button>
-                </>
-              }
-            </div>
+
+            {/* Reflection — only at exercises 5 and 10 */}
+            {showReflect&&(
+              <div style={{ background:"#f0fdf4",borderRadius:16,padding:"16px 20px",marginBottom:20,border:"1px solid #bbf7d0" }}>
+                <p style={{ fontSize:15,fontWeight:700,color:"#15803d",margin:"0 0 12px" }}>🧠 {reflectQ}</p>
+                {!reflectSaved
+                  ?<>
+                    <textarea placeholder="Escribí tu respuesta... (optativo)" value={reflectAns} onChange={e=>setReflectAns(e.target.value)}
+                      style={{ width:"100%",padding:"10px 12px",borderRadius:12,border:"2px solid #86efac",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",resize:"none",minHeight:65,marginBottom:10 }}/>
+                    <div style={{ display:"flex",gap:8 }}>
+                      {reflectAns.trim()&&<button onClick={saveReflection} style={{ ...btn("#16a34a"),flex:1,fontSize:14,padding:"10px" }}>Guardar ✓</button>}
+                      <button onClick={handleContinue} style={{ ...btn("#f1f5f9"),flex:1,color:"#475569",fontSize:14,padding:"10px" }}>Seguir con el juego →</button>
+                    </div>
+                  </>
+                  :<>
+                    <div style={{ background:"#dcfce7",borderRadius:12,padding:"12px 16px",textAlign:"center",marginBottom:12 }}>
+                      <p style={{ color:"#15803d",fontWeight:800,margin:"0 0 4px",fontSize:14 }}>✨ ¡Guardado!</p>
+                      <p style={{ color:"#16a34a",fontSize:12,margin:0 }}>Tu profe lo va a ver después — ¡seguimos jugando!</p>
+                    </div>
+                    <button onClick={handleContinue} style={{ ...btn(`linear-gradient(135deg,${lvl.color},${lvl.color}bb)`),width:"100%",fontSize:16 }}>Seguir con el juego →</button>
+                  </>
+                }
+              </div>
+            )}
+
+            {/* No reflection — just continue */}
+            {!showReflect&&(
+              <button onClick={handleContinue} style={{ ...btn(`linear-gradient(135deg,${lvl.color},${lvl.color}bb)`),width:"100%",fontSize:17 }}>
+                {cil>=5&&li<3?`¡Ir al ${LEVELS[li+1]?.name}! 🚀`:cil>=5&&li>=3?"¡Terminar! 🏆":"Seguir →"}
+              </button>
+            )}
           </div>
         )}
       </div>
+
       <p style={{ color:"#64748b",fontSize:12,marginTop:14 }}>Jugando como: <strong>{student.name}</strong> · Clase: <strong>{student.classCode}</strong></p>
     </div>
   );
 }
 
+// ─── ROOT ──────────────────────────────────────────────────────────────────
 export default function App() {
   const [screen,setScreen]=useState("home"), [teacher,setTeacher]=useState(null), [student,setStudent]=useState(null);
   return (
