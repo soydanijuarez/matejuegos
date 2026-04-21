@@ -10,21 +10,19 @@ const genCode = () => Math.random().toString(36).substring(2,8).toUpperCase();
 async function db({table,method="GET",body,filters="",upsertOn=""}) {
   try {
     const h = {"Content-Type":"application/json","apikey":ANON_KEY,"Authorization":`Bearer ${ANON_KEY}`};
-    if(method==="POST") h["Prefer"] = upsertOn ? `resolution=merge-duplicates,return=representation` : "return=representation";
+    if(method==="POST") h["Prefer"] = upsertOn?"resolution=merge-duplicates,return=representation":"return=representation";
     const url = `${SUPABASE_URL}/rest/v1/${table}${upsertOn?`?on_conflict=${upsertOn}`:""}${filters}`;
     const r = await fetch(url,{method,headers:h,body:body?JSON.stringify(body):undefined});
     return r.json();
   } catch { return null; }
 }
 
-// ─── MESSAGES ──────────────────────────────────────────────────────────────
 const MSG_WRONG = [
   "Mmm… probemos pensarlo de otra forma, ¿dale?",
   "¡No pasa! ¿Qué parte te parece más fácil de resolver primero?",
   "¿Podés separar el número para hacerlo más simple?",
   "¿Hay algo que ya sepas que te pueda ayudar acá?",
   "Volvé un pasito atrás… ¿qué sí sabés hacer?",
-  "¿Qué pasaría si este número fuera más chico?",
   "Casi casi… revisá ese detalle 👀",
   "Pensalo como si se lo explicaras a alguien más 💭",
 ];
@@ -37,124 +35,175 @@ const MSG_REFLECT = [
   "¿Qué te hizo darte cuenta de la respuesta?",
 ];
 
-// ─── GAMES CONFIG ──────────────────────────────────────────────────────────
 const GAMES = [
-  {id:"ceros",name:"Los Ceros Mágicos",   emoji:"🌱",desc:"Multiplicación y división con ceros",  color:"#4F8EF7",levels:4},
-  {id:"orden",name:"El Gran Orden",        emoji:"🔢",desc:"Ordenar y comparar números",           color:"#10B981",levels:4},
-  {id:"falta",name:"¿Qué número falta?",   emoji:"🧩",desc:"Descubrí el factor o el dividendo",   color:"#F97316",levels:4},
-  {id:"valor",name:"¿Cuánto vale?",        emoji:"⚖️",desc:"Valor posicional y descomposición",   color:"#A855F7",levels:4},
+  {id:"ceros",name:"Los Ceros Mágicos",  emoji:"🌱",desc:"Multiplicación y división con ceros",color:"#4F8EF7",levels:4},
+  {id:"orden",name:"El Gran Orden",       emoji:"🔢",desc:"Ordenar y comparar números",          color:"#10B981",levels:4},
+  {id:"falta",name:"¿Qué número falta?",  emoji:"🧩",desc:"Descubrí el factor o el dividendo",  color:"#F97316",levels:4},
+  {id:"valor",name:"¿Cuánto vale?",        emoji:"⚖️",desc:"Valor posicional y descomposición",  color:"#A855F7",levels:4},
 ];
 
-// ─── PROBLEM GENERATORS ────────────────────────────────────────────────────
+// ─── GENERATORS ─────────────────────────────────────────────────────────────
+
 function genCeros(lv) {
   const z = lv<=2?rnd(1,2):rnd(2,3), pow=Math.pow(10,z);
-  const doMult = lv===1||(lv===4&&Math.random()>.5);
-  if(doMult||(lv!==2&&lv!==3)) {
-    const a=rnd(2,9)*pow, b=rnd(2,9), base=a/pow;
-    return {type:"input",expr:`${a} × ${b}`,answer:String(a*b),
-      displayAns:`${a} × ${b} = ${a*b}`,
-      contextQ:`¿Qué pasaría si fuera ${a*10} × ${b}?`,
-      guides:[`¿Cuánto es ${base} × ${b} (sin los ceros)?`,`¿Cuántos ceros tiene el ${a}?`,`Entonces ${base}×${b}=${base*b} y el ${a} tiene ${z} cero${z>1?"s":""}… ¿qué pasa?`]};
+  const doMult = lv===1||(lv===4&&Math.random()>.5)||lv===2?false:true;
+  if(lv===1||lv===3||(lv===4&&Math.random()>.5)){
+    const a=rnd(2,9)*pow, b=rnd(2,9), base=a/pow, result=a*b;
+    const contextQs = [
+      `¿Qué tiene en común ${a} × ${b} con ${a*10} × ${b}?`,
+      `Si ${a} × ${b} = ${result}, ¿qué pasaría con ${a} × ${b*10}?`,
+      `¿Por qué creés que aparecen ceros en el resultado?`,
+      `¿Cuántos ceros tendría el resultado de ${a*10} × ${b}?`,
+    ];
+    return {type:"input",expr:`${a} × ${b}`,answer:String(result),displayAns:`${a} × ${b} = ${result}`,
+      contextQ:pick(contextQs),
+      guides:[`¿Cuánto es ${base} × ${b} (sin los ceros)?`,`El ${a} tiene ${z} cero${z>1?"s":""}… ¿qué te parece que pasa con eso?`]};
   } else {
-    const q=rnd(2,9), d=rnd(2,9), div=q*d*pow;
-    return {type:"input",expr:`${div} ÷ ${d}`,answer:String(q*pow),
-      displayAns:`${div} ÷ ${d} = ${q*pow}`,
-      contextQ:`¿Y si dividieras ${div} ÷ ${rnd(2,9)}? ¿Te parece que daría exacto?`,
-      guides:[`¿Cuánto es ${q*d} ÷ ${d} (sin los ceros)?`,`¿Cuántos ceros tiene el ${div}?`,`Entonces ${q*d}÷${d}=${q}, y el ${div} tiene ${z} cero${z>1?"s":""}… ¿qué pasa?`]};
+    const q=rnd(2,9), d=rnd(2,9), dividend=q*d*pow, result=q*pow;
+    const contextQs = [
+      `¿Qué relación ves entre ${dividend} ÷ ${d} y ${dividend*10} ÷ ${d}?`,
+      `¿Por qué el resultado también tiene ceros?`,
+      `¿Cómo sabés cuántos ceros va a tener el resultado antes de calcularlo?`,
+    ];
+    return {type:"input",expr:`${dividend} ÷ ${d}`,answer:String(result),displayAns:`${dividend} ÷ ${d} = ${result}`,
+      contextQ:pick(contextQs),
+      guides:[`¿Cuánto es ${q*d} ÷ ${d} (sin los ceros)?`,`El ${dividend} tiene ${z} cero${z>1?"s":""}… ¿qué te parece que pasa con eso?`]};
   }
 }
 
 function genOrden(lv) {
   const count = lv<=2?4:5;
-  let nums=[];
-  while(nums.length<count){
-    const n = lv===1?rnd(100,999):rnd(1000,9999);
-    if(!nums.includes(n)) nums.push(n);
-  }
-  if(lv>=3){
-    const base=rnd(1,8)*1000+rnd(0,8)*100;
-    nums=[base,base+50,base+200,base+750,base+900].slice(0,count).map(n=>Math.max(1000,Math.min(9999,n)));
-    const unique=new Set(nums); while(unique.size<count){unique.add(rnd(1000,9999));} nums=[...unique].slice(0,count);
-  }
-  const sorted=[...nums].sort((a,b)=>a-b);
-  let shuffled=[...nums].sort(()=>Math.random()-.5);
-  while(JSON.stringify(shuffled)===JSON.stringify(sorted)) shuffled=[...nums].sort(()=>Math.random()-.5);
-  return {type:"order",nums:shuffled,answer:sorted,
-    displayAns:sorted.join(" < "),
-    contextQ:`¿Cuánto le falta al número ${sorted[0]} para llegar al ${sorted[sorted.length-1]}?`,
-    guides:[`¿Cuál es el número más chico que ves?`,`De los que quedan, ¿cuál es el más chico ahora?`,`Fijate cuántas cifras tiene cada número — los que tienen más cifras son más grandes`]};
+  let nums = new Set();
+  const min = lv===1?100:1000, max = lv===1?999:9999;
+  while(nums.size<count) nums.add(rnd(min,max));
+  nums = [...nums];
+  const sorted = [...nums].sort((a,b)=>a-b);
+  let shuffled = [...nums].sort(()=>Math.random()-.5);
+  let tries = 0;
+  while(JSON.stringify(shuffled)===JSON.stringify(sorted)&&tries<20){shuffled=[...nums].sort(()=>Math.random()-.5);tries++;}
+  const contextQs = [
+    `¿Cuánto le falta al número más chico para llegar al más grande?`,
+    `¿Cuál de estos números está más cerca de ${Math.round((sorted[0]+sorted[sorted.length-1])/2/100)*100}?`,
+    `¿Todos estos números tienen la misma cantidad de cifras?`,
+  ];
+  return {type:"order",nums:shuffled,answer:[...sorted],displayAns:sorted.join(" < "),
+    contextQ:pick(contextQs),
+    guides:[`Fijate cuántas cifras tiene cada número. ¿Cuál tiene menos?`,`Si tienen la misma cantidad de cifras, comparalos de izquierda a derecha, dígito por dígito`]};
 }
 
 function genFalta(lv) {
   const z=lv<=2?1:rnd(1,2), pow=Math.pow(10,z);
   if(lv<=2){
     const a=rnd(2,9)*pow, b=rnd(2,9), result=a*b;
-    const hideA=lv===1||Math.random()>.5;
+    const hideA=Math.random()>.5;
+    const contextQs=[
+      `¿Cómo te diste cuenta de cuál era el número que faltaba?`,
+      `¿Hay otro par de números que multiplicados den ${result}?`,
+      `¿La multiplicación y la división te ayudaron acá?`,
+    ];
     return {type:"input",
       expr:hideA?`___ × ${b} = ${result}`:`${a} × ___ = ${result}`,
       answer:hideA?String(a):String(b),
       displayAns:`${a} × ${b} = ${result}`,
-      contextQ:hideA?`¿Hay otro número que multiplicado por ${b} dé un resultado parecido?`:`¿Cómo te diste cuenta de cuánto era el número que faltaba?`,
-      guides:[hideA?`¿Cuánto es ${result} ÷ ${b}?`:`¿Cuánto es ${result} ÷ ${a}?`,`La multiplicación y la división son operaciones inversas`,`Probá diferentes números hasta encontrar el que funcione`]};
+      contextQ:pick(contextQs),
+      guides:[hideA?`Si ___ × ${b} = ${result}, ¿qué operación inversa podés usar?`:`Si ${a} × ___ = ${result}, ¿qué operación inversa podés usar?`,`La multiplicación y la división se "deshacen" una a la otra. ¿Cómo usarías eso acá?`]};
   } else {
-    const q=rnd(2,9), d=rnd(2,9), dividend=q*d*pow;
+    const q=rnd(2,9), d=rnd(2,9), dividend=q*d*pow, result=q*pow;
     const hideD=Math.random()>.5;
+    const contextQs=[
+      `¿Siempre hay una sola respuesta posible para este tipo de cuentas?`,
+      `¿Cómo verificarías que tu respuesta es correcta?`,
+      `¿Qué operación usaste para encontrar el número que faltaba?`,
+    ];
     return {type:"input",
-      expr:hideD?`${dividend} ÷ ___ = ${q*pow}`:`___ ÷ ${d} = ${q*pow}`,
+      expr:hideD?`${dividend} ÷ ___ = ${result}`:`___ ÷ ${d} = ${result}`,
       answer:hideD?String(d):String(dividend),
-      displayAns:`${dividend} ÷ ${d} = ${q*pow}`,
-      contextQ:`¿Podrías plantear otra división que dé el mismo resultado?`,
-      guides:[hideD?`Si ${dividend} ÷ ___ = ${q*pow}, ¿cuánto es ${dividend} ÷ ${q*pow}?`:`Si ___ ÷ ${d} = ${q*pow}, ¿cuánto es ${q*pow} × ${d}?`,`Multiplicación y división se deshacen una a la otra`,hideD?`¿Cuánto es ${dividend} ÷ ${q*pow}?`:`¿Cuánto es ${q*pow} × ${d}?`]};
+      displayAns:`${dividend} ÷ ${d} = ${result}`,
+      contextQ:pick(contextQs),
+      guides:[hideD?`Si ${dividend} ÷ ___ = ${result}, ¿cuánto es ${dividend} ÷ ${result}?`:`Si ___ ÷ ${d} = ${result}, ¿cuánto es ${result} × ${d}?`,`Pensá en la operación inversa. ¿Qué te da?`]};
   }
 }
 
 function genValor(lv) {
-  const num=rnd(1000,9999);
-  const digs=String(num).split("").map(Number);
-  const POS=["millares","centenas","decenas","unidades"];
-  const VALS=[1000,100,10,1];
+  const num = rnd(1000,9999);
+  const d   = String(num).split("").map(Number);
+
   if(lv===1){
-    const p=rnd(0,3);
-    const answer=digs[p]*VALS[p];
-    return {type:"input",expr:`En el número ${num}, ¿cuánto vale el dígito ${digs[p]} que está en los ${POS[p]}?`,
-      answer:String(answer),displayAns:`El ${digs[p]} en los ${POS[p]} vale ${answer}`,
-      contextQ:`¿Y si ese mismo dígito estuviera en las ${POS[p===0?1:p-1]}? ¿Cuánto valdría?`,
-      guides:[`El ${num} tiene: ${digs[0]} en los millares, ${digs[1]} en las centenas, ${digs[2]} en las decenas, ${digs[3]} en las unidades`,`Un dígito en los ${POS[p]} vale dígito × ${VALS[p]}`,`¿Cuánto es ${digs[p]} × ${VALS[p]}?`]};
+    // ¿Cuántas decenas/centenas/unidades de mil hay?
+    const positions = [{name:"unidades de mil",val:d[0],pos:0},{name:"centenas",val:d[1],pos:1},{name:"decenas",val:d[2],pos:2},{name:"unidades",val:d[3],pos:3}];
+    const p = pick(positions);
+    if(p.val===0) return genValor(1);
+    const contextQs=[
+      `¿Si cambiaras las ${p.name} por otro número, cómo cambiaría el total?`,
+      `¿Cuántas ${p.name} tiene cualquier número de 4 cifras?`,
+    ];
+    return {type:"input",expr:`En el número ${num}, ¿cuántas ${p.name} hay?`,
+      answer:String(p.val),displayAns:`El ${num} tiene ${p.val} ${p.name}`,
+      contextQ:pick(contextQs),
+      guides:[`El ${num} se puede leer así: ${d[0]} unidades de mil, ${d[1]} centenas, ${d[2]} decenas y ${d[3]} unidades`,`Buscá la posición de las ${p.name} de derecha a izquierda: unidades, decenas, centenas, unidades de mil`]};
   }
+
   if(lv===2){
-    const parts=[digs[0]*1000,digs[1]*100,digs[2]*10,digs[3]].filter(x=>x>0);
-    const answer=parts.join("+");
-    return {type:"input",expr:`Descomponé el ${num} (escribí: 3000+400+20+5)`,
-      answer,displayAns:`${num} = ${parts.join(" + ")}`,flexible:true,
-      contextQ:`¿Cuánto le tendrías que sumar al ${num} para que el dígito de las centenas sea 9?`,
-      guides:[`El ${num} tiene ${digs[0]} millares, ${digs[1]} centenas, ${digs[2]} decenas y ${digs[3]} unidades`,`Calculá el valor de cada parte: ${digs[0]}×1000, ${digs[1]}×100…`,`Escribilos separados con + sin espacios`]};
+    // Descomponer el número
+    const parts=[], labels=[];
+    if(d[0]) { parts.push(d[0]*1000); labels.push(`${d[0]}000`); }
+    if(d[1]) { parts.push(d[1]*100);  labels.push(`${d[1]}00`); }
+    if(d[2]) { parts.push(d[2]*10);   labels.push(`${d[2]}0`); }
+    if(d[3]) { parts.push(d[3]);      labels.push(`${d[3]}`); }
+    const answer = labels.join("+");
+    const contextQs=[
+      `¿Podés descomponer un número de 5 cifras de la misma manera?`,
+      `¿Qué pasa si en la descomposición sumás todos los números?`,
+    ];
+    return {type:"input",flexible:true,
+      expr:`Descomponé el ${num} (escribí: ${labels[0]}+...+${labels[labels.length-1]})`,
+      answer,displayAns:`${num} = ${labels.join(" + ")}`,
+      contextQ:pick(contextQs),
+      guides:[`El ${num} tiene ${d[0]} unidades de mil, ${d[1]} centenas, ${d[2]} decenas y ${d[3]} unidades`,`Escribí el valor de cada parte y unilas con +, sin espacios`]};
   }
+
   if(lv===3){
-    const parts=[digs[0]*1000,digs[1]*100,digs[2]*10,digs[3]].filter(x=>x>0);
-    return {type:"input",expr:`${parts.join(" + ")} = ___`,
-      answer:String(num),displayAns:`${parts.join(" + ")} = ${num}`,
-      contextQ:`Si cambiaras el ${digs[1]*100} por ${(digs[1]+1)*100}, ¿cuánto daría en total?`,
-      guides:[`Sumá los números de izquierda a derecha`,`Empezá por los más grandes: ${parts[0]} + ${parts[1]||0}`,`Después sumá los que quedan`]};
+    // Armar el número desde su descomposición
+    const labels=[];
+    if(d[0]) labels.push(`${d[0]} unidades de mil`);
+    if(d[1]) labels.push(`${d[1]} centenas`);
+    if(d[2]) labels.push(`${d[2]} decenas`);
+    if(d[3]) labels.push(`${d[3]} unidades`);
+    const contextQs=[
+      `¿Cómo cambiaría el número si agregaras 1 centena más?`,
+      `¿Podés armar otro número cambiando solo las decenas?`,
+    ];
+    return {type:"input",
+      expr:`¿Qué número se forma con ${labels.join(", ")}?`,
+      answer:String(num),displayAns:`El número es ${num}`,
+      contextQ:pick(contextQs),
+      guides:[`Pensá en cada parte por separado: ${d[0]} unidades de mil = ${d[0]*1000}`,`Ahora sumá todas las partes de mayor a menor`]};
   }
-  // lv===4: comparar
+
+  // lv===4 comparar
   const a=rnd(1000,9999), b=rnd(1000,9999);
   if(a===b) return genValor(4);
   const answer=a>b?">":"<";
-  return {type:"choice",choices:[">","<"],expr:`${a}  ___  ${b}`,
+  const contextQs=[
+    `¿Cuánto le falta al número más chico para igualar al más grande?`,
+    `¿En qué posición están los dígitos que te ayudaron a comparar?`,
+  ];
+  return {type:"choice",choices:[">","<"],
+    expr:`${a}  ___  ${b}`,
     answer,displayAns:`${a} ${answer} ${b}`,
-    contextQ:`¿Cuánto le falta al número más chico para igualar al más grande?`,
-    guides:[`Fijate el primer dígito de cada número`,`Si el primer dígito es igual, compará el segundo`,`El número con el dígito mayor en la posición más alta es el número mayor`]};
+    contextQ:pick(contextQs),
+    guides:[`Fijate el primer dígito de cada número (las unidades de mil)`,`Si el primer dígito es igual, pasá al siguiente. ¿Cuál es mayor?`]};
 }
 
 const GENS = {ceros:genCeros,orden:genOrden,falta:genFalta,valor:genValor};
 
-// ─── STYLES ────────────────────────────────────────────────────────────────
+// ─── STYLES ──────────────────────────────────────────────────────────────────
 const card  = {background:"white",borderRadius:28,padding:"32px 28px",maxWidth:500,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.13)"};
 const sinp  = {width:"100%",padding:"13px 16px",borderRadius:14,border:"2px solid #e2e8f0",fontSize:16,fontFamily:"inherit",outline:"none",boxSizing:"border-box",marginBottom:12};
 const sbtn  = (bg,ex={}) => ({padding:"12px 20px",borderRadius:16,border:"none",background:bg,color:"white",fontWeight:800,fontSize:15,cursor:"pointer",fontFamily:"inherit",...ex});
 const spg   = (bg="linear-gradient(135deg,#667eea,#764ba2)") => ({minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:bg,padding:20,fontFamily:"'Nunito',sans-serif"});
 
-// ─── HOME ──────────────────────────────────────────────────────────────────
+// ─── HOME ─────────────────────────────────────────────────────────────────────
 function Home({go}) {
   return (
     <div style={spg()}>
@@ -169,7 +218,7 @@ function Home({go}) {
   );
 }
 
-// ─── TEACHER LOGIN ─────────────────────────────────────────────────────────
+// ─── TEACHER LOGIN ────────────────────────────────────────────────────────────
 function TeacherLogin({go,setTeacher}) {
   const [code,setCode]=useState(""), [err,setErr]=useState("");
   const login=()=>{if(code.trim().toUpperCase()===TEACHER_CODE){setTeacher({});go("teacher-dashboard");}else setErr("Código incorrecto.");};
@@ -187,7 +236,7 @@ function TeacherLogin({go,setTeacher}) {
   );
 }
 
-// ─── TEACHER DASHBOARD ─────────────────────────────────────────────────────
+// ─── TEACHER DASHBOARD ───────────────────────────────────────────────────────
 function TeacherDashboard({go}) {
   const [classes,setClasses]=useState([]), [selected,setSelected]=useState(null);
   const [newName,setNewName]=useState(""), [loading,setLoading]=useState(true), [creating,setCreating]=useState(false);
@@ -223,24 +272,20 @@ function TeacherDashboard({go}) {
     setNewName(""); await loadClasses(); setCreating(false);
   };
 
-  // Group attempts by student + game
-  const attemptStats = attempts.reduce((acc,a)=>{
+  const attemptStats=attempts.reduce((acc,a)=>{
     const key=`${a.student_name}||${a.game_id}`;
-    if(!acc[key]) acc[key]={student:a.student_name,game:a.game_id,total:0,hints:0,failed:0,exercises:new Set()};
-    acc[key].total++;
-    acc[key].hints+=a.hints_used||0;
-    if(!a.solved) acc[key].failed++;
-    acc[key].exercises.add(a.exercise_expr);
+    if(!acc[key]) acc[key]={student:a.student_name,game:a.game_id,total:0,hints:0,failed:0};
+    acc[key].total++; acc[key].hints+=a.hints_used||0; if(!a.solved) acc[key].failed++;
     return acc;
   },{});
 
-  const gameResults = results.reduce((acc,r)=>{
+  const gameResults=results.reduce((acc,r)=>{
     if(!acc[r.student_name]) acc[r.student_name]={};
-    acc[r.student_name][r.game_id]={score:r.score,correct:r.correct_count,wrong:r.wrong_count,level:r.level_reached};
+    acc[r.student_name][r.game_id]={score:r.score,correct:r.correct_count,wrong:r.wrong_count};
     return acc;
   },{});
 
-  const students = [...new Set([...results.map(r=>r.student_name),...reflections.map(r=>r.student_name)])];
+  const students=[...new Set([...results.map(r=>r.student_name),...reflections.map(r=>r.student_name)])];
 
   return (
     <div style={{minHeight:"100vh",background:"#f1f5f9",fontFamily:"'Nunito',sans-serif"}}>
@@ -248,7 +293,6 @@ function TeacherDashboard({go}) {
         <div><div style={{color:"rgba(255,255,255,0.65)",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1}}>Panel Docente</div><div style={{color:"white",fontSize:22,fontWeight:900}}>🎓 MateJuegos</div></div>
         <button onClick={()=>go("home")} style={{background:"rgba(255,255,255,0.18)",border:"none",color:"white",borderRadius:12,padding:"8px 18px",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Salir</button>
       </div>
-
       <div style={{maxWidth:960,margin:"0 auto",padding:"24px 16px",display:"grid",gridTemplateColumns:"260px 1fr",gap:18,alignItems:"start"}}>
         <div>
           <div style={{background:"white",borderRadius:20,padding:20,marginBottom:16,boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}>
@@ -271,7 +315,6 @@ function TeacherDashboard({go}) {
             ))}
           </div>
         </div>
-
         <div>
           {!selected&&<div style={{background:"white",borderRadius:20,padding:40,textAlign:"center",boxShadow:"0 2px 12px rgba(0,0,0,0.06)"}}><div style={{fontSize:48,marginBottom:12}}>👈</div><p style={{color:"#94a3b8",fontWeight:700}}>Seleccioná una clase para ver los datos</p></div>}
           {selected&&(
@@ -280,7 +323,6 @@ function TeacherDashboard({go}) {
                 <div><h3 style={{margin:"0 0 4px",color:"#1e293b",fontWeight:900}}>📊 {selected.name}</h3><p style={{margin:0,color:"#94a3b8",fontSize:12}}>Código: <strong style={{color:"#667eea",letterSpacing:1}}>{selected.code}</strong></p></div>
                 <button onClick={()=>selectClass(selected)} style={{...sbtn("#f1f5f9"),color:"#64748b",fontSize:13}}>🔄</button>
               </div>
-
               <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
                 {["results","attempts","reflections"].map(t=>(
                   <button key={t} onClick={()=>setTab(t)} style={{...sbtn(tab===t?"#667eea":"#f1f5f9"),color:tab===t?"white":"#64748b",padding:"8px 14px",fontSize:13,flex:1}}>
@@ -289,9 +331,7 @@ function TeacherDashboard({go}) {
                   </button>
                 ))}
               </div>
-
               {loadingData&&<p style={{color:"#94a3b8"}}>Cargando...</p>}
-
               {!loadingData&&tab==="results"&&(
                 <>
                   {students.length===0&&<div style={{textAlign:"center",padding:"30px 0"}}><div style={{fontSize:40}}>🎮</div><p style={{color:"#94a3b8",marginTop:8}}>Nadie jugó todavía. Código: <strong style={{color:"#667eea"}}>{selected.code}</strong></p></div>}
@@ -317,7 +357,6 @@ function TeacherDashboard({go}) {
                   ))}
                 </>
               )}
-
               {!loadingData&&tab==="attempts"&&(
                 <>
                   {Object.keys(attemptStats).length===0&&<div style={{textAlign:"center",padding:"30px 0"}}><div style={{fontSize:40}}>🔍</div><p style={{color:"#94a3b8",marginTop:8}}>Sin datos de intentos todavía.</p></div>}
@@ -325,10 +364,7 @@ function TeacherDashboard({go}) {
                     const game=GAMES.find(g=>g.id===s.game);
                     return (
                       <div key={i} style={{background:"#f8fafc",borderRadius:14,padding:"12px 16px",marginBottom:10,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div>
-                          <div style={{fontWeight:800,color:"#1e293b"}}>{s.student}</div>
-                          <div style={{fontSize:12,color:"#64748b",marginTop:2}}>{game?.emoji} {game?.name}</div>
-                        </div>
+                        <div><div style={{fontWeight:800,color:"#1e293b"}}>{s.student}</div><div style={{fontSize:12,color:"#64748b",marginTop:2}}>{game?.emoji} {game?.name}</div></div>
                         <div style={{display:"flex",gap:12,textAlign:"center"}}>
                           <div><div style={{fontWeight:900,color:"#667eea",fontSize:16}}>{s.total}</div><div style={{fontSize:10,color:"#94a3b8"}}>intentos</div></div>
                           <div><div style={{fontWeight:900,color:"#f97316",fontSize:16}}>{s.hints}</div><div style={{fontSize:10,color:"#94a3b8"}}>ayudas</div></div>
@@ -339,7 +375,6 @@ function TeacherDashboard({go}) {
                   })}
                 </>
               )}
-
               {!loadingData&&tab==="reflections"&&(
                 <>
                   {reflections.length===0&&<div style={{textAlign:"center",padding:"30px 0"}}><div style={{fontSize:40}}>💭</div><p style={{color:"#94a3b8",marginTop:8}}>Sin reflexiones todavía.</p></div>}
@@ -363,7 +398,7 @@ function TeacherDashboard({go}) {
   );
 }
 
-// ─── STUDENT ENTER ─────────────────────────────────────────────────────────
+// ─── STUDENT ENTER ───────────────────────────────────────────────────────────
 function StudentEnter({go,setStudent}) {
   const [name,setName]=useState(""), [code,setCode]=useState(""), [err,setErr]=useState(""), [loading,setLoading]=useState(false);
   const enter=async()=>{
@@ -388,7 +423,7 @@ function StudentEnter({go,setStudent}) {
   );
 }
 
-// ─── GAME MENU ─────────────────────────────────────────────────────────────
+// ─── GAME MENU ───────────────────────────────────────────────────────────────
 function GameMenu({student,go,setGameSession}) {
   const [progress,setProgress]=useState({});
   const [loading,setLoading]=useState(true);
@@ -397,24 +432,16 @@ function GameMenu({student,go,setGameSession}) {
 
   const loadProgress=async()=>{
     const d=await db({table:"student_progress",filters:`?class_code=eq.${student.classCode}&student_name=eq.${encodeURIComponent(student.name)}`});
-    if(Array.isArray(d)){
-      const p={};
-      d.forEach(r=>{ p[r.game_id]={level:r.level_reached,completed:r.completed}; });
-      setProgress(p);
-    }
+    if(Array.isArray(d)){const p={};d.forEach(r=>{p[r.game_id]={level:r.level_reached,completed:r.completed};});setProgress(p);}
     setLoading(false);
   };
 
-  const startGame=(gameId,level)=>{
-    setGameSession({gameId,level});
-    go("game-player");
-  };
+  const startGame=(gameId,level)=>{setGameSession({gameId,level});go("game-player");};
 
-  const getLevelStatus=(gameId,levelNum)=>{
-    const gp=progress[gameId];
-    const reached=gp?.level||1;
-    if(levelNum<reached) return "done";
-    if(levelNum===reached) return "current";
+  const getLevelStatus=(gameId,lv)=>{
+    const reached=progress[gameId]?.level||1;
+    if(lv<reached) return "done";
+    if(lv===reached) return "current";
     return "locked";
   };
 
@@ -424,9 +451,7 @@ function GameMenu({student,go,setGameSession}) {
         <div><div style={{color:"rgba(255,255,255,0.7)",fontSize:12,fontWeight:700}}>¡Hola, {student.name}! 👋</div><div style={{color:"white",fontSize:20,fontWeight:900}}>🎓 Elegí tu juego</div></div>
         <button onClick={()=>go("home")} style={{background:"rgba(255,255,255,0.18)",border:"none",color:"white",borderRadius:12,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13}}>Salir</button>
       </div>
-
       {loading&&<div style={{textAlign:"center",padding:40,color:"#94a3b8"}}>Cargando tu progreso...</div>}
-
       {!loading&&(
         <div style={{maxWidth:800,margin:"0 auto",padding:"24px 16px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
           {GAMES.map(game=>(
@@ -437,12 +462,10 @@ function GameMenu({student,go,setGameSession}) {
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 {[1,2,3,4].map(lv=>{
                   const status=getLevelStatus(game.id,lv);
-                  const isLocked=status==="locked";
-                  const isDone=status==="done";
-                  const isCurrent=status==="current";
+                  const isLocked=status==="locked", isDone=status==="done", isCurrent=status==="current";
                   return (
                     <button key={lv} onClick={()=>!isLocked&&startGame(game.id,lv)}
-                      style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:14,border:`2px solid ${isLocked?"#f1f5f9":game.color}`,background:isLocked?"#fafafa":isDone?"#f0fdf4":isCurrent?`${game.color}15`:"white",cursor:isLocked?"not-allowed":"pointer",transition:"all 0.2s",fontFamily:"inherit"}}>
+                      style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:14,border:`2px solid ${isLocked?"#f1f5f9":game.color}`,background:isLocked?"#fafafa":isDone?"#f0fdf4":`${game.color}15`,cursor:isLocked?"not-allowed":"pointer",fontFamily:"inherit",transition:"all 0.2s"}}>
                       <span style={{fontSize:18}}>{isLocked?"🔒":isDone?"✅":"▶️"}</span>
                       <div style={{flex:1,textAlign:"left"}}>
                         <div style={{fontWeight:800,fontSize:14,color:isLocked?"#cbd5e1":isDone?"#16a34a":game.color}}>Nivel {lv}</div>
@@ -462,71 +485,65 @@ function GameMenu({student,go,setGameSession}) {
   );
 }
 
-// ─── GAME PLAYER ───────────────────────────────────────────────────────────
+// ─── GAME PLAYER ─────────────────────────────────────────────────────────────
 function GamePlayer({student,gameSession,go}) {
-  const {gameId,level} = gameSession;
-  const game = GAMES.find(g=>g.id===gameId);
-  const gen  = GENS[gameId];
+  const {gameId,level}=gameSession;
+  const game=GAMES.find(g=>g.id===gameId);
+  const gen=GENS[gameId];
 
-  const [prob,setProb]           = useState(()=>gen(level));
-  const [phase,setPhase]         = useState("question");
-  const [answer,setAnswer]       = useState("");
+  const [prob,setProb]             = useState(()=>gen(level));
+  const [phase,setPhase]           = useState("question");
+  const [answer,setAnswer]         = useState("");
+  const [lastAnswer,setLastAnswer] = useState(""); // para "volver atrás"
   const [orderSelected,setOrderSelected] = useState([]);
-  const [guideStep,setGuideStep] = useState(0);
-  const [guideAns,setGuideAns]   = useState("");
-  const [wrongMsg,setWrongMsg]   = useState("");
-  const [okMsg,setOkMsg]         = useState("");
-  const [reflectQ,setReflectQ]   = useState("");
+  const [guideStep,setGuideStep]   = useState(0);
+  const [guideAns,setGuideAns]     = useState("");
+  const [wrongMsg,setWrongMsg]     = useState("");
+  const [okMsg,setOkMsg]           = useState("");
+  const [reflectQ,setReflectQ]     = useState("");
   const [showReflect,setShowReflect] = useState(false);
-  const [reflectAns,setReflectAns]   = useState("");
+  const [reflectAns,setReflectAns] = useState("");
   const [reflectSaved,setReflectSaved] = useState(false);
-  const [score,setScore]         = useState(0);
-  const [correct,setCorrect]     = useState(0);
-  const [wrong,setWrong]         = useState(0);
-  const [cil,setCil]             = useState(0);
-  const [finished,setFinished]   = useState(false);
-  const [saving,setSaving]       = useState(false);
-  const [attempts,setAttempts]   = useState(0);
-  const [hintsUsed,setHintsUsed] = useState(0);
-  const totalExercises           = useRef(0);
-  const inputRef                 = useRef(null);
+  const [score,setScore]           = useState(0);
+  const [correct,setCorrect]       = useState(0);
+  const [wrong,setWrong]           = useState(0);
+  const [cil,setCil]               = useState(0);
+  const [finished,setFinished]     = useState(false);
+  const [saving,setSaving]         = useState(false);
+  const [hintsUsed,setHintsUsed]   = useState(0);
+  const totalEx                    = useRef(0);
+  const inputRef                   = useRef(null);
 
   useEffect(()=>{setTimeout(()=>inputRef.current?.focus(),200);},[phase,prob]);
 
   const newProb=()=>{
-    totalExercises.current++;
-    setProb(gen(level)); setAnswer(""); setPhase("question");
+    setProb(gen(level)); setAnswer(""); setLastAnswer(""); setPhase("question");
     setGuideStep(0); setGuideAns(""); setReflectAns(""); setReflectSaved(false); setShowReflect(false);
-    setAttempts(0); setHintsUsed(0);
+    setHintsUsed(0); setOrderSelected([]);
     setTimeout(()=>inputRef.current?.focus(),100);
   };
 
+  const isCorrect=(userAns)=>{
+    if(prob.type==="order") return JSON.stringify(userAns)===JSON.stringify(prob.answer);
+    if(prob.flexible){const norm=s=>s.replace(/\s/g,""); return norm(String(userAns))===norm(String(prob.answer));}
+    return String(userAns).trim()===String(prob.answer);
+  };
+
   const checkAnswer=(val)=>{
-    const userAns=(val||answer);
-    let correct_ans=false;
-    if(prob.type==="order"){
-      const selected=orderSelected;
-      correct_ans=JSON.stringify(selected)===JSON.stringify(prob.answer);
-    } else if(prob.flexible){
-      const norm=s=>s.replace(/\s/g,"");
-      correct_ans=norm(String(userAns))===norm(String(prob.answer));
-    } else {
-      correct_ans=String(userAns).trim()===String(prob.answer);
-    }
-
-    // Save attempt
-    db({table:"exercise_attempts",method:"POST",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level,exercise_expr:prob.expr,attempts:attempts+1,hints_used:hintsUsed,solved:correct_ans}});
-    setAttempts(a=>a+1);
-
-    if(correct_ans){
-      totalExercises.current++;
-      const shouldReflect=totalExercises.current%5===0;
+    const userAns = val!==undefined ? val : (prob.type==="order"?orderSelected:answer);
+    const ok = isCorrect(userAns);
+    // save attempt
+    db({table:"exercise_attempts",method:"POST",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level,exercise_expr:prob.expr,attempts:1,hints_used:hintsUsed,solved:ok}});
+    if(ok){
+      totalEx.current++;
+      const shouldReflect = totalEx.current%5===0;
       setOkMsg(pick(MSG_OK));
       if(shouldReflect){setReflectQ(pick(MSG_REFLECT));setShowReflect(true);}
       setScore(s=>s+10); setCorrect(c=>c+1);
-      setCil(c=>{ const n=c+1; return n; });
+      setCil(c=>c+1);
       setPhase("correct");
     } else {
+      setLastAnswer(prob.type==="order"?[...orderSelected]:answer);
       setWrongMsg(pick(MSG_WRONG));
       setWrong(c=>c+1);
       setPhase("wrong");
@@ -541,37 +558,31 @@ function GamePlayer({student,gameSession,go}) {
   };
 
   const handleContinue=async()=>{
-    const newCil=cil;
-    if(newCil>=5){
+    if(cil>=5){
       setSaving(true);
       await Promise.all([
         db({table:"game_results",method:"POST",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,game_name:game.name,score,correct_count:correct,wrong_count:wrong,level_reached:level}}),
-        db({table:"student_progress",method:"POST",upsertOn:"class_code,student_name,game_id",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level_reached:level+1,exercises_completed:totalExercises.current,completed:level>=4,last_played:new Date().toISOString()}}),
+        db({table:"student_progress",method:"POST",upsertOn:"class_code,student_name,game_id",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level_reached:level+1,exercises_completed:totalEx.current,completed:level>=4,last_played:new Date().toISOString()}}),
       ]);
-      setSaving(false);
-      setFinished(true);
-    } else {
-      newProb();
-    }
+      setSaving(false); setFinished(true);
+    } else { newProb(); }
   };
 
   const saveAndExit=async()=>{
-    await db({table:"student_progress",method:"POST",upsertOn:"class_code,student_name,game_id",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level_reached:level,exercises_completed:totalExercises.current,completed:false,last_played:new Date().toISOString()}});
+    await db({table:"student_progress",method:"POST",upsertOn:"class_code,student_name,game_id",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level_reached:level,exercises_completed:totalEx.current,completed:false,last_played:new Date().toISOString()}});
     go("game-menu");
   };
 
-  const pct=Math.min((cil/5)*100,100);
-
-  // ── ORDER GAME HELPERS ──
   const handleOrderClick=(num)=>{
     if(orderSelected.includes(num)){
       setOrderSelected(orderSelected.filter(n=>n!==num));
     } else {
       const next=[...orderSelected,num];
       setOrderSelected(next);
-      if(next.length===prob.nums.length) checkAnswer(next);
     }
   };
+
+  const pct=Math.min((cil/5)*100,100);
 
   if(finished) return (
     <div style={spg(`linear-gradient(135deg,${game.color},${game.color}99)`)}>
@@ -584,9 +595,8 @@ function GamePlayer({student,gameSession,go}) {
           <div><div style={{fontSize:36,fontWeight:900,color:"#22c55e"}}>{correct}</div><div style={{fontSize:12,color:"#475569",fontWeight:800}}>CORRECTAS</div></div>
           <div><div style={{fontSize:36,fontWeight:900,color:"#ef4444"}}>{wrong}</div><div style={{fontSize:12,color:"#475569",fontWeight:800}}>ERRORES</div></div>
         </div>
-        {saving&&<p style={{color:"#94a3b8",fontSize:13,marginBottom:12}}>Guardando... ⏳</p>}
-        {!saving&&<p style={{color:"#22c55e",fontSize:13,marginBottom:12,fontWeight:700}}>✅ ¡Tu progreso fue guardado!</p>}
-        <button style={{...sbtn("linear-gradient(135deg,#667eea,#764ba2)"),width:"100%",marginBottom:10}} onClick={()=>go("game-menu")}>Volver a los juegos 🎮</button>
+        {saving?<p style={{color:"#94a3b8",fontSize:13,marginBottom:12}}>Guardando... ⏳</p>:<p style={{color:"#22c55e",fontSize:13,marginBottom:12,fontWeight:700}}>✅ ¡Tu progreso fue guardado!</p>}
+        <button style={{...sbtn("linear-gradient(135deg,#667eea,#764ba2)"),width:"100%",marginBottom:10}} onClick={()=>go("game-menu")}>← Volver a los juegos</button>
         {level<4&&<p style={{color:game.color,fontSize:13,fontWeight:700,margin:0}}>🔓 ¡Desbloqueaste el Nivel {level+1}!</p>}
       </div>
     </div>
@@ -598,12 +608,16 @@ function GamePlayer({student,gameSession,go}) {
 
       {/* Header */}
       <div style={{width:"100%",maxWidth:500,display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <div style={{background:game.color,color:"white",borderRadius:14,padding:"7px 14px",fontWeight:800,fontSize:13}}>{game.emoji} {game.name} · Nivel {level}</div>
-        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <button onClick={saveAndExit} style={{background:"rgba(255,255,255,0.9)",border:"none",borderRadius:12,padding:"8px 14px",cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:13,color:"#475569"}}>← Volver al menú</button>
+        <div style={{display:"flex",gap:6}}>
           <div style={{background:"white",borderRadius:12,padding:"6px 12px",fontWeight:800,color:"#22c55e",fontSize:13,boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>✅ {correct}</div>
           <div style={{background:"white",borderRadius:12,padding:"6px 12px",fontWeight:800,color:game.color,fontSize:13,boxShadow:"0 2px 8px rgba(0,0,0,0.07)"}}>⭐ {score}</div>
-          <button onClick={saveAndExit} style={{background:"rgba(255,255,255,0.9)",border:"none",borderRadius:12,padding:"6px 12px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,color:"#64748b"}}>💾 Salir</button>
         </div>
+      </div>
+
+      {/* Game title */}
+      <div style={{marginBottom:10,background:game.color,color:"white",borderRadius:14,padding:"6px 16px",fontWeight:800,fontSize:13}}>
+        {game.emoji} {game.name} · Nivel {level}
       </div>
 
       {/* Progress */}
@@ -620,25 +634,31 @@ function GamePlayer({student,gameSession,go}) {
         {phase==="question"&&(
           <>
             <p style={{textAlign:"center",color:"#94a3b8",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:16}}>
-              {prob.type==="order"?"Tocá los números de menor a mayor":prob.type==="choice"?"¿Qué símbolo va en el medio?":"¿Cuánto es?"}
+              {prob.type==="order"?"Tocá los números de menor a mayor y confirmá":prob.type==="choice"?"¿Qué símbolo va en el medio?":"Resolvé"}
             </p>
 
-            {/* INPUT TYPE */}
             {prob.type==="input"&&(
               <>
-                <div style={{textAlign:"center",marginBottom:20}}>
-                  <p style={{fontSize:prob.expr.length>30?16:26,fontWeight:900,color:"#1e293b",margin:0,lineHeight:1.4}}>{prob.expr.includes("___")?prob.expr:`${prob.expr} =`}</p>
-                  {!prob.expr.includes("___")&&<div style={{fontSize:28,fontWeight:900,color:game.color,borderBottom:`3px solid ${game.color}`,paddingBottom:2,minWidth:100,display:"inline-block",marginTop:8}}>{answer||"　　　　"}</div>}
+                <div style={{textAlign:"center",marginBottom:16}}>
+                  <p style={{fontSize:prob.expr.length>40?15:24,fontWeight:900,color:"#1e293b",margin:0,lineHeight:1.5}}>
+                    {prob.expr.includes("___")?prob.expr:`${prob.expr} =`}
+                  </p>
+                  {!prob.expr.includes("___")&&(
+                    <div style={{fontSize:26,fontWeight:900,color:game.color,borderBottom:`3px solid ${game.color}`,paddingBottom:2,minWidth:100,display:"inline-block",marginTop:8}}>
+                      {answer||"　　　　"}
+                    </div>
+                  )}
                 </div>
-                <input ref={inputRef} type="text" inputMode={prob.flexible?"text":"numeric"} placeholder={prob.flexible?"Escribí la descomposición...":"Escribí el resultado"}
-                  value={answer} onChange={e=>setAnswer(prob.flexible?e.target.value:e.target.value.replace(/[^0-9]/g,""))}
+                <input ref={inputRef} type="text" inputMode={prob.flexible?"text":"numeric"}
+                  placeholder={prob.flexible?"Escribí la descomposición...":"Escribí el resultado"}
+                  value={answer}
+                  onChange={e=>setAnswer(prob.flexible?e.target.value:e.target.value.replace(/[^0-9]/g,""))}
                   onKeyDown={e=>e.key==="Enter"&&answer&&checkAnswer()}
                   style={{...sinp,fontSize:18,fontWeight:800,textAlign:"center"}}/>
                 <button onClick={()=>checkAnswer()} disabled={!answer} style={{...sbtn(answer?game.color:"#e2e8f0"),width:"100%",color:answer?"white":"#94a3b8",cursor:answer?"pointer":"not-allowed"}}>✓ Comprobar</button>
               </>
             )}
 
-            {/* CHOICE TYPE */}
             {prob.type==="choice"&&(
               <>
                 <p style={{fontSize:28,fontWeight:900,color:"#1e293b",textAlign:"center",marginBottom:20}}>{prob.expr}</p>
@@ -650,27 +670,38 @@ function GamePlayer({student,gameSession,go}) {
               </>
             )}
 
-            {/* ORDER TYPE */}
             {prob.type==="order"&&(
               <>
+                <p style={{textAlign:"center",fontSize:13,color:"#64748b",marginBottom:12}}>
+                  Tocá los números en orden de menor a mayor:
+                </p>
                 <div style={{display:"flex",flexWrap:"wrap",gap:8,justifyContent:"center",marginBottom:16}}>
                   {prob.nums.map((n,i)=>{
-                    const sel=orderSelected.includes(n);
                     const selIdx=orderSelected.indexOf(n);
+                    const sel=selIdx!==-1;
                     return (
-                      <button key={i} onClick={()=>handleOrderClick(n)} style={{...sbtn(sel?game.color:"#f1f5f9"),color:sel?"white":"#1e293b",padding:"12px 18px",fontSize:20,fontWeight:900,minWidth:80,position:"relative"}}>
+                      <button key={i} onClick={()=>handleOrderClick(n)}
+                        style={{...sbtn(sel?game.color:"#f1f5f9"),color:sel?"white":"#1e293b",padding:"12px 18px",fontSize:20,fontWeight:900,minWidth:88,position:"relative",transition:"all 0.15s"}}>
                         {n}
-                        {sel&&<span style={{position:"absolute",top:-8,right:-8,background:"#1e293b",color:"white",borderRadius:99,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900}}>{selIdx+1}</span>}
+                        {sel&&<span style={{position:"absolute",top:-8,right:-8,background:"#1e293b",color:"white",borderRadius:99,width:22,height:22,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:900}}>{selIdx+1}</span>}
                       </button>
                     );
                   })}
                 </div>
                 {orderSelected.length>0&&(
-                  <div style={{background:"#f8fafc",borderRadius:14,padding:"10px 14px",marginBottom:12,textAlign:"center"}}>
-                    <p style={{margin:0,fontSize:13,color:"#64748b",fontWeight:700}}>Tu orden: {orderSelected.join(" → ")}</p>
+                  <div style={{background:"#f8fafc",borderRadius:12,padding:"10px 14px",marginBottom:12}}>
+                    <p style={{margin:0,fontSize:13,color:"#475569",fontWeight:700}}>
+                      Tu orden: {orderSelected.map((n,i)=><span key={i}><strong style={{color:game.color}}>{n}</strong>{i<orderSelected.length-1?" → ":""}</span>)}
+                    </p>
                   </div>
                 )}
-                {orderSelected.length>0&&<button onClick={()=>setOrderSelected([])} style={{...sbtn("#f1f5f9"),width:"100%",color:"#64748b",fontSize:13}}>Borrar selección</button>}
+                <div style={{display:"flex",gap:8}}>
+                  {orderSelected.length>0&&<button onClick={()=>setOrderSelected([])} style={{...sbtn("#f1f5f9"),flex:1,color:"#64748b",fontSize:13}}>Borrar</button>}
+                  <button onClick={()=>checkAnswer(orderSelected)} disabled={orderSelected.length!==prob.nums.length}
+                    style={{...sbtn(orderSelected.length===prob.nums.length?game.color:"#e2e8f0"),flex:2,color:orderSelected.length===prob.nums.length?"white":"#94a3b8",cursor:orderSelected.length===prob.nums.length?"pointer":"not-allowed"}}>
+                    ✓ Confirmar orden
+                  </button>
+                </div>
               </>
             )}
           </>
@@ -681,27 +712,45 @@ function GamePlayer({student,gameSession,go}) {
           <div style={{animation:"pop 0.3s ease"}}>
             <div style={{textAlign:"center",marginBottom:20}}>
               <div style={{fontSize:44,marginBottom:8}}>🤔</div>
-              <p style={{fontSize:19,fontWeight:900,color:"#f97316",margin:0,lineHeight:1.4}}>{wrongMsg}</p>
+              <p style={{fontSize:18,fontWeight:900,color:"#f97316",margin:0,lineHeight:1.4}}>{wrongMsg}</p>
             </div>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>{setHintsUsed(h=>h+1);setPhase("guide");setGuideStep(0);setGuideAns("");}} style={{...sbtn("linear-gradient(135deg,#667eea,#764ba2)"),flex:1}}>Quiero una guía 💡</button>
-              <button onClick={()=>{setAnswer("");setOrderSelected([]);setPhase("question");}} style={{...sbtn("#f1f5f9"),flex:1,color:"#475569"}}>Lo intento nuevamente 🔄</button>
+            <div style={{display:"flex",gap:8,marginBottom:8}}>
+              <button onClick={()=>{setHintsUsed(h=>h+1);setPhase("guide");setGuideStep(0);setGuideAns("");}} style={{...sbtn("linear-gradient(135deg,#667eea,#764ba2)"),flex:1,fontSize:14}}>Quiero una guía 💡</button>
+              <button onClick={()=>{setAnswer("");setOrderSelected([]);setPhase("question");}} style={{...sbtn("#f1f5f9"),flex:1,color:"#475569",fontSize:14}}>Intentarlo de nuevo 🔄</button>
             </div>
+            <button onClick={()=>{
+              if(prob.type==="order") setOrderSelected(Array.isArray(lastAnswer)?[...lastAnswer]:[]);
+              else setAnswer(typeof lastAnswer==="string"?lastAnswer:"");
+              setPhase("question");
+            }} style={{...sbtn("#fef3c7"),width:"100%",color:"#92400e",fontSize:13}}>← Volver atrás y revisar mi respuesta</button>
           </div>
         )}
 
         {/* ── GUIDE ── */}
         {phase==="guide"&&(
           <div style={{animation:"pop 0.3s ease"}}>
-            <p style={{textAlign:"center",color:"#94a3b8",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>Guía · paso {guideStep+1} de {prob.guides.length}</p>
+            <p style={{textAlign:"center",color:"#94a3b8",fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:14}}>
+              Guía · pregunta {guideStep+1} de {prob.guides.length}
+            </p>
             <div style={{background:"#f5f3ff",borderRadius:16,padding:"16px 20px",marginBottom:16,borderLeft:`4px solid ${game.color}`}}>
               <p style={{fontSize:16,fontWeight:700,color:"#1e293b",margin:0}}>{prob.guides[guideStep]}</p>
             </div>
-            <input ref={inputRef} type="text" placeholder="Tu respuesta..." value={guideAns} onChange={e=>setGuideAns(e.target.value)} style={{...sinp,fontSize:16,fontWeight:700,textAlign:"center"}}
-              onKeyDown={e=>{if(e.key==="Enter"&&guideAns.trim()){if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}else{setPhase("question");setAnswer("");setOrderSelected([]);}}}}/>
-            <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>{setAnswer("");setOrderSelected([]);setPhase("question");}} style={{...sbtn("#f1f5f9"),color:"#475569",flex:1,fontSize:13}}>Salir de la guía</button>
-              <button onClick={()=>{if(!guideAns.trim())return;if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}else{setPhase("question");setAnswer("");setOrderSelected("");}}} style={{...sbtn(`linear-gradient(135deg,${game.color},${game.color}cc)`),flex:2}}>
+            <input ref={inputRef} type="text" placeholder="Escribí lo que pensás..." value={guideAns}
+              onChange={e=>setGuideAns(e.target.value)}
+              style={{...sinp,fontSize:16,fontWeight:700,textAlign:"center"}}
+              onKeyDown={e=>{
+                if(e.key==="Enter"&&guideAns.trim()){
+                  if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}
+                  else{setAnswer("");setOrderSelected([]);setPhase("question");}
+                }
+              }}/>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>{setAnswer("");setOrderSelected([]);setPhase("question");}} style={{...sbtn("#f1f5f9"),color:"#475569",flex:1,fontSize:13}}>← Salir de la guía</button>
+              <button onClick={()=>{
+                if(!guideAns.trim()) return;
+                if(guideStep<prob.guides.length-1){setGuideStep(g=>g+1);setGuideAns("");}
+                else{setAnswer("");setOrderSelected([]);setPhase("question");}
+              }} style={{...sbtn(`linear-gradient(135deg,${game.color},${game.color}cc)`),flex:2}}>
                 {guideStep<prob.guides.length-1?"Siguiente →":"¡Entonces… a intentarlo! 🚀"}
               </button>
             </div>
@@ -717,10 +766,13 @@ function GamePlayer({student,gameSession,go}) {
               <p style={{fontSize:13,color:"#64748b",marginTop:6}}>{prob.displayAns}</p>
             </div>
 
-            {/* Contextual question — always shown */}
-            <div style={{background:`${game.color}12`,borderRadius:14,padding:"12px 16px",marginBottom:16,borderLeft:`3px solid ${game.color}`}}>
-              <p style={{fontSize:14,fontWeight:700,color:"#1e293b",margin:0}}>💬 {prob.contextQ}</p>
-            </div>
+            {/* Contextual question — solo para pensar, sin input, solo si no hay reflexión */}
+            {!showReflect&&(
+              <div style={{background:`${game.color}10`,borderRadius:14,padding:"12px 16px",marginBottom:16,borderLeft:`3px solid ${game.color}`}}>
+                <p style={{fontSize:13,color:"#475569",fontWeight:700,margin:"0 0 4px"}}>💬 Para pensar:</p>
+                <p style={{fontSize:14,color:"#1e293b",margin:0,fontWeight:600,lineHeight:1.5}}>{prob.contextQ}</p>
+              </div>
+            )}
 
             {/* Reflection — only at exercises 5 and 10 */}
             {showReflect&&(
@@ -728,7 +780,8 @@ function GamePlayer({student,gameSession,go}) {
                 <p style={{fontSize:14,fontWeight:700,color:"#15803d",margin:"0 0 10px"}}>🧠 {reflectQ}</p>
                 {!reflectSaved
                   ?<>
-                    <textarea placeholder="Escribí tu respuesta… (optativo)" value={reflectAns} onChange={e=>setReflectAns(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:12,border:"2px solid #86efac",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",resize:"none",minHeight:60,marginBottom:8}}/>
+                    <textarea placeholder="Escribí tu respuesta… (optativo)" value={reflectAns} onChange={e=>setReflectAns(e.target.value)}
+                      style={{width:"100%",padding:"10px 12px",borderRadius:12,border:"2px solid #86efac",fontSize:14,fontFamily:"inherit",outline:"none",boxSizing:"border-box",resize:"none",minHeight:60,marginBottom:8}}/>
                     <div style={{display:"flex",gap:8}}>
                       {reflectAns.trim()&&<button onClick={saveReflection} style={{...sbtn("#16a34a"),flex:1,fontSize:13,padding:"9px"}}>Guardar ✓</button>}
                       <button onClick={handleContinue} style={{...sbtn("#f1f5f9"),flex:1,color:"#475569",fontSize:13,padding:"9px"}}>Seguir →</button>
@@ -761,11 +814,11 @@ function GamePlayer({student,gameSession,go}) {
   );
 }
 
-// ─── ROOT ──────────────────────────────────────────────────────────────────
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [screen,setScreen]       = useState("home");
-  const [teacher,setTeacher]     = useState(null);
-  const [student,setStudent]     = useState(null);
+  const [screen,setScreen]         = useState("home");
+  const [teacher,setTeacher]       = useState(null);
+  const [student,setStudent]       = useState(null);
   const [gameSession,setGameSession] = useState(null);
   return (
     <>
