@@ -17,7 +17,6 @@ async function db({ table, method = "GET", body, filters = "", upsertOn = "" }) 
   } catch { return null; }
 }
 
-// ─── GAMES CONFIG ─────────────────────────────────────────────────────────
 const GAMES = [
   { id: "ceros", name: "Los Ceros Mágicos",  color: "#3B82F6", levels: 4, desc: "Multiplicación y división por múltiplos de 10" },
   { id: "orden", name: "El Gran Orden",       color: "#10B981", levels: 4, desc: "Ordenar y comparar números hasta 9.999" },
@@ -27,131 +26,133 @@ const GAMES = [
 
 // ─── THINK MODALS ─────────────────────────────────────────────────────────
 const THINK_MODALS = {
-  ceros: ["¿Multiplicar por 10 siempre agrega un cero al resultado?","¿Dividir entre 10 siempre quita un cero?","¿200 × 3 es lo mismo que 2 × 300?"],
-  orden: ["¿Todos los números de 4 cifras son mayores que cualquier número de 3 cifras?","¿Cuál es el número más chico de 4 cifras que existe?","¿Dos números distintos pueden ocupar el mismo lugar en la recta numérica?"],
-  falta: ["¿La multiplicación y la división son operaciones inversas?","¿Si conocés el resultado y uno de los factores, podés encontrar el otro?"],
-  valor: ["¿El mismo dígito puede valer distinto según su posición?","¿En 3.456, el dígito 3 representa miles?","¿Cuál es el número más grande que se puede escribir con los dígitos 1, 2, 3 y 4?"],
+  ceros: [
+    "¿Multiplicar por 10 siempre agrega un cero al resultado?",
+    "¿Dividir entre 10 siempre quita un cero?",
+    "¿200 × 3 es lo mismo que 2 × 300?",
+  ],
+  orden: [
+    "¿Todos los números de 4 cifras son mayores que cualquier número de 3 cifras?",
+    "¿Cuál es el número más chico de 4 cifras que existe?",
+    "Si tenés dos números con los mismos dígitos pero en distinto orden, ¿cuál es mayor?",
+  ],
+  falta: [
+    "¿La multiplicación y la división son operaciones inversas?",
+    "Si conocés el resultado y uno de los factores, ¿podés encontrar el otro?",
+    "¿Un número puede ser factor de sí mismo?",
+  ],
+  valor: [
+    "¿El mismo dígito puede valer distinto según su posición?",
+    "¿Cuál es el número más grande de 4 cifras que existe?",
+    "¿Cuál es el número más chico de 4 cifras que existe?",
+  ],
 };
 
-// ─── CONTEXTUAL GUIDES (no input, affirmations + reflective questions) ────
+// ─── CONTEXTUAL GUIDES (no input, affirmations + reflexive questions) ──────
 // Each guide is an array of slides: { type: "info"|"question", text }
-function buildGuides(gameId, level, prob, wrongAnswer) {
+function buildGuides(gameId, level, prob) {
+  const num = prob._num;
+
   if (gameId === "valor") {
     if (level === 1) {
-      const num = prob._num || 0;
-      const d = String(num).split("").map(Number);
-      const posName = prob._posName || "unidades de mil";
-      const correctVal = prob._correctVal || 0;
-      const wrongNum = parseInt(wrongAnswer) || 0;
+      const posName = prob._posName || "";
+      const d = num ? String(num).split("").map(Number) : [0,0,0,0];
+      const [m, c, dec, u] = d;
 
-      // Determine what the student got wrong
-      const isWrongByOneOff = Math.abs(wrongNum - correctVal) === 1;
-      const isConfusedWithNeighbor = !isWrongByOneOff && wrongNum > 0 && wrongNum <= 9;
-
-      if (posName === "unidades de mil") {
-        return pick([
+      const byPosition = {
+        "unidades de mil": pick([
           [
-            { type: "info",     text: `Todo número de 4 cifras tiene: unidades de mil, centenas, decenas y unidades.` },
-            { type: "info",     text: `En el número ${num}, el primer dígito es el ${d[0]}.` },
+            { type: "info",     text: `El número ${num} tiene 4 cifras: unidades de mil, centenas, decenas y unidades.` },
+            { type: "info",     text: `La primera cifra de la izquierda indica las unidades de mil. En el ${num}, esa cifra es el ${m}.` },
             { type: "question", text: `¿Cuántas unidades de mil tiene el ${num}?` },
           ],
           [
-            { type: "info",     text: `Las unidades de mil son el primer dígito, el de la izquierda.` },
-            { type: "info",     text: `El número ${num} empieza con ${d[0]}.` },
+            { type: "info",     text: `Para encontrar las unidades de mil, mirá el primer dígito: en el ${num} es el ${m}.` },
             { type: "question", text: `¿Cuál es el primer dígito del ${num}?` },
           ],
-        ]);
-      }
-      if (posName === "centenas") {
-        return pick([
+        ]),
+        "centenas": pick([
           [
-            { type: "info",     text: `Las centenas están en la segunda posición de izquierda a derecha.` },
-            { type: "info",     text: `El número ${num} se lee: ${d[0]} unidades de mil, ${d[1]} centenas, ${d[2]} decenas, ${d[3]} unidades.` },
-            { type: "question", text: `¿Cuántas centenas aparecen en el ${num}?` },
+            { type: "info",     text: `En el ${num}, el orden de las cifras es: ${m} · ${c} · ${dec} · ${u}.` },
+            { type: "info",     text: `El segundo dígito de la izquierda indica las centenas. En el ${num}, ese dígito es el ${c}.` },
+            { type: "question", text: `¿Cuántas centenas tiene el ${num}?` },
           ],
           [
-            { type: "info",     text: `Para encontrar las centenas, contá desde la izquierda: el primer dígito son miles, el segundo son centenas.` },
-            { type: "question", text: `En el número ${num}, ¿qué dígito ocupa el segundo lugar?` },
+            { type: "info",     text: `Contá las posiciones de izquierda a derecha: miles → centenas → decenas → unidades.` },
+            { type: "question", text: `¿Qué número está en la segunda posición del ${num}?` },
           ],
-        ]);
-      }
-      if (posName === "decenas") {
-        return [
-          { type: "info",     text: `Las decenas están en el tercer lugar contando desde la izquierda.` },
-          { type: "info",     text: `En el ${num}: ${d[0]} miles · ${d[1]} centenas · ${d[2]} decenas · ${d[3]} unidades.` },
-          { type: "question", text: `¿Cuál es el tercer dígito del número ${num}?` },
-        ];
-      }
-      // unidades
-      return [
-        { type: "info",     text: `Las unidades siempre están en el último lugar, a la derecha del todo.` },
-        { type: "info",     text: `El ${num} termina en ${d[3]}.` },
-        { type: "question", text: `¿Cuántas unidades tiene el número ${num}?` },
-      ];
+        ]),
+        "decenas": [
+          { type: "info",     text: `En el ${num}, el orden es: ${m} miles · ${c} centenas · ${dec} decenas · ${u} unidades.` },
+          { type: "info",     text: `El tercer dígito de la izquierda indica las decenas. En el ${num} es el ${dec}.` },
+          { type: "question", text: `¿Cuántas decenas tiene el ${num}?` },
+        ],
+        "unidades": [
+          { type: "info",     text: `Las unidades siempre están en el último lugar, a la derecha del todo.` },
+          { type: "info",     text: `El ${num} termina en ${u}. Ese es el dígito de las unidades.` },
+          { type: "question", text: `¿Cuántas unidades tiene el ${num}?` },
+        ],
+      };
+      return byPosition[posName] || byPosition["unidades de mil"];
     }
 
     if (level === 2) {
+      const d = num ? String(num).split("").map(Number) : [0,0,0,0];
+      const [m, c, dec, u] = d;
       return pick([
         [
-          { type: "info",     text: `Descomponer un número significa separarlo en sus partes: miles, centenas, decenas y unidades.` },
-          { type: "info",     text: `Ejemplo: 3456 = 3000 + 400 + 50 + 6` },
-          { type: "question", text: `¿Podés identificar cuántos miles, centenas, decenas y unidades tiene este número?` },
+          { type: "info",     text: `Descomponer significa separar un número en sus partes.` },
+          { type: "info",     text: `El ${num} tiene ${m} unidades de mil, ${c} centenas, ${dec} decenas y ${u} unidades.` },
+          { type: "question", text: `¿Cuánto vale cada parte? Sumalas con + sin espacios.` },
         ],
         [
-          { type: "info",     text: `Cada dígito tiene un valor según su posición.` },
-          { type: "info",     text: `Si el primer dígito es 5, vale 5000. Si el segundo es 3, vale 300.` },
-          { type: "question", text: `¿Cuánto vale cada dígito de este número?` },
+          { type: "info",     text: `Ejemplo: 3456 = 3000 + 400 + 50 + 6, que se escribe 3000+400+50+6.` },
+          { type: "info",     text: `El ${num} tiene ${m} miles = ${m*1000}, ${c} centenas = ${c*100}, ${dec} decenas = ${dec*10}, ${u} unidades = ${u}.` },
+          { type: "question", text: `¿Cómo escribirías la descomposición del ${num}?` },
         ],
       ]);
     }
 
     if (level === 3) {
       return [
-        { type: "info",     text: `Para armar un número desde su descripción, sumá cada parte.` },
-        { type: "info",     text: `Ejemplo: 2 unidades de mil + 3 centenas + 4 decenas + 5 unidades = 2000 + 300 + 40 + 5 = 2345` },
-        { type: "question", text: `¿Cuánto es la suma de todas las partes de este número?` },
+        { type: "info",     text: `Para armar el número, sumá todas sus partes.` },
+        { type: "info",     text: `Ejemplo: 2 unidades de mil + 3 centenas + 4 decenas + 5 unidades = 2000 + 300 + 40 + 5 = 2345.` },
+        { type: "question", text: `¿Cuánto da la suma de todas las partes que te dieron?` },
       ];
     }
 
-    if (level === 4) {
-      return pick([
-        [
-          { type: "info",     text: `Para saber cuál número es mayor, empezá por la posición más importante: las unidades de mil.` },
-          { type: "question", text: `¿Cuántas unidades de mil tiene cada número?` },
-        ],
-        [
-          { type: "info",     text: `Si los miles son iguales, comparás las centenas. Si las centenas también son iguales, pasás a las decenas.` },
-          { type: "question", text: `¿En qué posición empiezan a diferir los dos números?` },
-        ],
-        [
-          { type: "info",     text: `Un número con más unidades de mil siempre es mayor, sin importar las demás cifras.` },
-          { type: "info",     text: `Ejemplo: 4.100 > 3.999 porque 4 miles > 3 miles.` },
-          { type: "question", text: `¿Cuál de los dos números tiene más unidades de mil?` },
-        ],
-      ]);
-    }
+    // level 4 — comparison
+    const opts = prob.options || [];
+    return pick([
+      [
+        { type: "info",     text: `Para comparar números, empezá por la primera cifra de la izquierda: las unidades de mil.` },
+        { type: "question", text: `¿Cuántas unidades de mil tiene cada número?` },
+      ],
+      [
+        { type: "info",     text: `Si las unidades de mil son iguales, pasás a comparar las centenas.` },
+        { type: "info",     text: `El número con la cifra mayor en la posición más alta siempre es el mayor.` },
+        { type: "question", text: `¿En qué posición empiezan a diferir los números?` },
+      ],
+      [
+        { type: "info",     text: `Un número con más unidades de mil siempre es mayor, sin importar las otras cifras.` },
+        { type: "info",     text: `Ejemplo: 4100 es mayor que 3999 porque 4 miles > 3 miles.` },
+        { type: "question", text: `¿Cuál de los números tiene más unidades de mil?` },
+      ],
+    ]);
   }
 
   if (gameId === "ceros") {
-    if (level <= 2) {
-      const expr = prob.expr || "";
-      return pick([
-        [
-          { type: "info",     text: `Multiplicar por un número con ceros se puede hacer en dos pasos.` },
-          { type: "info",     text: `Primero multiplicás los dígitos sin ceros, después agregás los ceros.` },
-          { type: "question", text: `¿Cuántos ceros tiene uno de los números de esta operación?` },
-        ],
-        [
-          { type: "info",     text: `Los ceros al final de un número indican que estás multiplicando por 10, 100 o 1000.` },
-          { type: "question", text: `¿Cuántas veces multiplicaste por 10 en esta operación?` },
-        ],
-      ]);
-    }
-    return [
-      { type: "info",     text: `Dividir entre un número con ceros también se hace en dos pasos.` },
-      { type: "info",     text: `Primero dividís los dígitos sin ceros, después quitás los ceros del resultado.` },
-      { type: "question", text: `¿Cuántos ceros tiene el divisor de esta operación?` },
-    ];
+    return pick([
+      [
+        { type: "info",     text: `Multiplicar por un número con ceros se hace en dos pasos.` },
+        { type: "info",     text: `Primero multiplicás los dígitos sin ceros, después agregás todos los ceros.` },
+        { type: "question", text: `¿Cuántos ceros tiene uno de los números de esta operación?` },
+      ],
+      [
+        { type: "info",     text: `Los ceros al final indican que multiplicaste por 10, por 100 o por 1000.` },
+        { type: "question", text: `¿Cuántas veces multiplicaste por 10 en esta operación?` },
+      ],
+    ]);
   }
 
   if (gameId === "orden") {
@@ -161,8 +162,8 @@ function buildGuides(gameId, level, prob, wrongAnswer) {
         { type: "question", text: `¿Todos los números de esta lista tienen la misma cantidad de cifras?` },
       ],
       [
-        { type: "info",     text: `Si dos números tienen la misma cantidad de cifras, compará dígito por dígito de izquierda a derecha.` },
-        { type: "question", text: `¿En qué posición difieren estos números?` },
+        { type: "info",     text: `Si dos números tienen la misma cantidad de cifras, compará dígito por dígito, de izquierda a derecha.` },
+        { type: "question", text: `¿En qué posición difieren los números más parecidos?` },
       ],
     ]);
   }
@@ -172,11 +173,11 @@ function buildGuides(gameId, level, prob, wrongAnswer) {
       [
         { type: "info",     text: `La multiplicación y la división son operaciones inversas.` },
         { type: "info",     text: `Si A × B = C, entonces C ÷ B = A.` },
-        { type: "question", text: `¿Qué operación inversa podrías usar para encontrar el número que falta?` },
+        { type: "question", text: `¿Qué operación inversa podés usar para encontrar el número que falta?` },
       ],
       [
-        { type: "info",     text: `Para encontrar un factor que falta, podés usar la división.` },
-        { type: "question", text: `¿Cuánto da el resultado si lo dividís por el número que sí conocés?` },
+        { type: "info",     text: `Para encontrar un factor que falta, podés dividir el resultado por el factor conocido.` },
+        { type: "question", text: `¿Cuánto da el resultado si lo dividís por el número que ya tenés?` },
       ],
     ]);
   }
@@ -184,7 +185,7 @@ function buildGuides(gameId, level, prob, wrongAnswer) {
   return [{ type: "info", text: "Revisá el enunciado con calma e intentalo de nuevo." }];
 }
 
-// ─── GENERATORS ──────────────────────────────────────────────────────────
+// ─── GENERATORS ───────────────────────────────────────────────────────────
 function genCeros(lv) {
   const z = lv <= 2 ? rnd(1, 2) : rnd(2, 3), pow = Math.pow(10, z);
   if (lv === 1 || lv === 3 || (lv === 4 && Math.random() > 0.5)) {
@@ -193,7 +194,7 @@ function genCeros(lv) {
       type: "input", expr: `${a} × ${b}`, answer: String(a * b),
       displayAns: `${a} × ${b} = ${a * b}`,
       feedbackOk:    `Correcto. ${a} × ${b} = ${a * b}.`,
-      feedbackWrong: `No es correcto. Primero calculá ${base} × ${b}, después pensá en los ceros del ${a}.`,
+      feedbackWrong: `No es correcto. Calculá primero ${base} × ${b}, después sumá los ${z} cero${z>1?"s":""} del ${a}.`,
     };
   }
   const q = rnd(2, 9), d = rnd(2, 9), dividend = q * d * pow;
@@ -201,24 +202,24 @@ function genCeros(lv) {
     type: "input", expr: `${dividend} ÷ ${d}`, answer: String(q * pow),
     displayAns: `${dividend} ÷ ${d} = ${q * pow}`,
     feedbackOk:    `Correcto. ${dividend} ÷ ${d} = ${q * pow}.`,
-    feedbackWrong: `No es correcto. Primero calculá ${q * d} ÷ ${d}, después pensá en los ceros.`,
+    feedbackWrong: `No es correcto. Calculá primero ${q * d} ÷ ${d}, después pensá en los ceros.`,
   };
 }
 
 function genOrden(lv) {
   const count = lv <= 2 ? 4 : 5, min = lv === 1 ? 100 : 1000, max = lv === 1 ? 999 : 9999;
-  let nums = new Set();
-  while (nums.size < count) nums.add(rnd(min, max));
-  nums = [...nums];
+  let s = new Set();
+  while (s.size < count) s.add(rnd(min, max));
+  const nums = [...s];
   const sorted = [...nums].sort((a, b) => a - b);
   let shuffled = [...nums].sort(() => Math.random() - 0.5);
-  let tries = 0;
-  while (JSON.stringify(shuffled) === JSON.stringify(sorted) && tries < 20) { shuffled = [...nums].sort(() => Math.random() - 0.5); tries++; }
+  let t = 0;
+  while (JSON.stringify(shuffled) === JSON.stringify(sorted) && t < 20) { shuffled = [...nums].sort(() => Math.random() - 0.5); t++; }
   return {
-    type: "order", nums: shuffled, answer: [...sorted],
+    type: "order", nums: shuffled, answer: sorted,
     displayAns: sorted.join(" < "),
     feedbackOk:    `Correcto. El orden de menor a mayor es: ${sorted.join(" < ")}.`,
-    feedbackWrong: `No es correcto. Revisá tu respuesta y volvé a intentarlo.`,
+    feedbackWrong: `No es correcto. Revisá tu respuesta.`,
   };
 }
 
@@ -232,7 +233,7 @@ function genFalta(lv) {
       answer: hideA ? String(a) : String(b),
       displayAns: `${a} × ${b} = ${result}`,
       feedbackOk:    `Correcto. ${a} × ${b} = ${result}.`,
-      feedbackWrong: `No es correcto. Pensá en la operación inversa: ¿cuánto es ${result} ÷ ${hideA ? b : a}?`,
+      feedbackWrong: `No es correcto. Pensá: ¿cuánto es ${result} ÷ ${hideA ? b : a}?`,
     };
   }
   const q = rnd(2, 9), d = rnd(2, 9), dividend = q * d * pow, result = q * pow, hideD = Math.random() > 0.5;
@@ -248,22 +249,25 @@ function genFalta(lv) {
 
 function genValor(lv) {
   if (lv === 1) {
-    const num = rnd(1000, 9999);
-    const d = String(num).split("").map(Number);
-    const POS = [
-      { name: "unidades de mil", idx: 0 },
-      { name: "centenas",        idx: 1 },
-      { name: "decenas",         idx: 2 },
-      { name: "unidades",        idx: 3 },
-    ];
-    const p = pick(POS.filter(p => d[p.idx] !== 0));
+    let num, d, p;
+    do {
+      num = rnd(1000, 9999);
+      d = String(num).split("").map(Number);
+      const POS = [
+        { name: "unidades de mil", idx: 0 },
+        { name: "centenas",        idx: 1 },
+        { name: "decenas",         idx: 2 },
+        { name: "unidades",        idx: 3 },
+      ].filter(p => d[p.idx] !== 0);
+      p = pick(POS);
+    } while (!p);
     return {
       type: "input",
       expr: `En el número ${num}, ¿cuántas ${p.name} hay?`,
       answer: String(d[p.idx]),
       displayAns: `El ${num} tiene ${d[p.idx]} ${p.name}.`,
       feedbackOk:    `Correcto. El ${num} tiene ${d[p.idx]} ${p.name}.`,
-      feedbackWrong: `No es correcto. Volvé a intentarlo.`,
+      feedbackWrong: `No es correcto. El ${num} se lee: ${d[0]} unidades de mil, ${d[1]} centenas, ${d[2]} decenas y ${d[3]} unidades.`,
       _num: num, _posName: p.name, _correctVal: d[p.idx],
     };
   }
@@ -271,15 +275,15 @@ function genValor(lv) {
   if (lv === 2) {
     const num = rnd(1000, 9999);
     const d = String(num).split("").map(Number);
-    const parts = [], labels = [];
-    if (d[0]) { parts.push(d[0] * 1000); labels.push(`${d[0]}000`); }
-    if (d[1]) { parts.push(d[1] * 100);  labels.push(`${d[1]}00`); }
-    if (d[2]) { parts.push(d[2] * 10);   labels.push(`${d[2]}0`); }
-    if (d[3]) { parts.push(d[3]);         labels.push(`${d[3]}`); }
+    const labels = [];
+    if (d[0]) labels.push(`${d[0]}000`);
+    if (d[1]) labels.push(`${d[1]}00`);
+    if (d[2]) labels.push(`${d[2]}0`);
+    if (d[3]) labels.push(`${d[3]}`);
     const answer = labels.join("+");
     return {
       type: "input", flexible: true,
-      expr: `Descomponé el ${num}`,
+      expr: `Descomponé el número ${num}`,
       placeholder: `Ejemplo: ${labels[0]}+${labels[1] || "0"}`,
       answer,
       displayAns: `${num} = ${labels.join(" + ")}`,
@@ -303,60 +307,128 @@ function genValor(lv) {
       answer: String(num),
       displayAns: `El número es ${num}.`,
       feedbackOk:    `Correcto. ${labels.join(", ")} forman el número ${num}.`,
-      feedbackWrong: `No es correcto. Sumá cada parte: ${d[0] * 1000} + ${d[1] * 100} + ${d[2] * 10} + ${d[3]}.`,
+      feedbackWrong: `No es correcto. Sumá cada parte: ${d[0]*1000} + ${d[1]*100} + ${d[2]*10} + ${d[3]}.`,
       _num: num,
     };
   }
 
-  // lv === 4: visual comparison - NO < >
-  const subLevel = rnd(1, 4);
-  if (subLevel <= 2) {
-    // "¿Cuál es mayor?" with 2 numbers
-    const a = rnd(1000, 9999), b = rnd(1000, 9999);
-    if (a === b) return genValor(4);
-    const question = subLevel === 1 ? "¿Cuál es el número mayor?" : "¿Cuál es el número menor?";
-    const correctAnswer = subLevel === 1 ? String(Math.max(a, b)) : String(Math.min(a, b));
+  // lv === 4: ALWAYS visual — no < >
+  // Rotate through 4 sub-types, each 5 is a full set
+  const subType = rnd(1, 4);
+
+  if (subType === 1) {
+    // ¿Cuál es el mayor? — 2 numbers, click
+    let a = rnd(1000, 9999), b = rnd(1000, 9999);
+    while (a === b) b = rnd(1000, 9999);
+    const bigger = Math.max(a, b);
     return {
       type: "pick2",
-      question,
-      options: [a, b],
-      answer: correctAnswer,
-      displayAns: subLevel === 1 ? `${Math.max(a, b)} es el mayor.` : `${Math.min(a, b)} es el menor.`,
-      feedbackOk:    subLevel === 1 ? `Correcto. ${Math.max(a, b)} es mayor que ${Math.min(a, b)}.` : `Correcto. ${Math.min(a, b)} es menor que ${Math.max(a, b)}.`,
-      feedbackWrong: `No es correcto. Revisá la posición de cada dígito.`,
+      question: "¿Cuál es el número mayor?",
+      options: [a, b].sort(() => Math.random() - 0.5),
+      answer: String(bigger),
+      displayAns: `${bigger} es el número mayor.`,
+      feedbackOk:    `Correcto. ${bigger} es mayor.`,
+      feedbackWrong: `No es correcto. Comparalos cifra por cifra, de izquierda a derecha.`,
     };
   }
-  if (subLevel === 3) {
-    // Order 3 numbers from greatest to least
-    let nums = new Set(); while (nums.size < 3) nums.add(rnd(1000, 9999)); nums = [...nums];
-    const sorted = [...nums].sort((a, b) => b - a);
-    let shuffled = [...nums].sort(() => Math.random() - 0.5);
+
+  if (subType === 2) {
+    // ¿Cuál es el menor? — 2 numbers, click
+    let a = rnd(1000, 9999), b = rnd(1000, 9999);
+    while (a === b) b = rnd(1000, 9999);
+    const smaller = Math.min(a, b);
     return {
-      type: "order", nums: shuffled, answer: [...sorted],
+      type: "pick2",
+      question: "¿Cuál es el número menor?",
+      options: [a, b].sort(() => Math.random() - 0.5),
+      answer: String(smaller),
+      displayAns: `${smaller} es el número menor.`,
+      feedbackOk:    `Correcto. ${smaller} es menor.`,
+      feedbackWrong: `No es correcto. Comparalos cifra por cifra, de izquierda a derecha.`,
+    };
+  }
+
+  if (subType === 3) {
+    // Ordenar 3 números de mayor a menor
+    let s = new Set();
+    while (s.size < 3) s.add(rnd(1000, 9999));
+    const nums = [...s];
+    const sorted = [...nums].sort((a, b) => b - a); // descending
+    let shuffled = [...nums].sort(() => Math.random() - 0.5);
+    let t = 0;
+    while (JSON.stringify(shuffled) === JSON.stringify(sorted) && t < 20) { shuffled = [...nums].sort(() => Math.random() - 0.5); t++; }
+    return {
+      type: "order",
       question: "Ordená de mayor a menor",
-      displayAns: `${sorted.join(" > ")}`,
+      descending: true,
+      nums: shuffled,
+      answer: sorted,
+      displayAns: sorted.join(" > "),
       feedbackOk:    `Correcto. De mayor a menor: ${sorted.join(" > ")}.`,
       feedbackWrong: `No es correcto. Empezá por el número con más unidades de mil.`,
-      descending: true,
     };
   }
-  // subLevel === 4: Order 4 numbers
-  let nums4 = new Set(); while (nums4.size < 4) nums4.add(rnd(1000, 9999)); nums4 = [...nums4];
-  const sorted4 = [...nums4].sort((a, b) => b - a);
+
+  // subType === 4: Ordenar 4 números de mayor a menor
+  let s2 = new Set();
+  while (s2.size < 4) s2.add(rnd(1000, 9999));
+  const nums4 = [...s2];
+  const sorted4 = [...nums4].sort((a, b) => b - a); // descending
   let shuffled4 = [...nums4].sort(() => Math.random() - 0.5);
+  let t2 = 0;
+  while (JSON.stringify(shuffled4) === JSON.stringify(sorted4) && t2 < 20) { shuffled4 = [...nums4].sort(() => Math.random() - 0.5); t2++; }
   return {
-    type: "order", nums: shuffled4, answer: [...sorted4],
+    type: "order",
     question: "Ordená de mayor a menor",
-    displayAns: `${sorted4.join(" > ")}`,
+    descending: true,
+    nums: shuffled4,
+    answer: sorted4,
+    displayAns: sorted4.join(" > "),
     feedbackOk:    `Correcto. De mayor a menor: ${sorted4.join(" > ")}.`,
     feedbackWrong: `No es correcto. Comparalos dígito por dígito.`,
-    descending: true,
   };
 }
 
 const GENS = { ceros: genCeros, orden: genOrden, falta: genFalta, valor: genValor };
 
-// ─── DESIGN TOKENS ────────────────────────────────────────────────────────
+// ─── REFLECTION QUESTIONS — contextual per game ────────────────────────────
+function getReflectQuestion(gameId, prob) {
+  if (gameId === "valor") {
+    const num = prob._num;
+    const questions = [
+      `Si cambiaras el dígito de las centenas del ${num} por 9, ¿qué número quedaría?`,
+      `¿Cuánto le falta al ${num} para llegar a ${Math.ceil(num/1000)*1000}?`,
+      `¿Cómo cambiaría el ${num} si le agregaras 100 más?`,
+      `¿En qué posición está el dígito más grande del ${num}?`,
+    ];
+    return pick(questions.filter(Boolean));
+  }
+  if (gameId === "ceros") {
+    const expr = prob.expr || "";
+    return pick([
+      `¿Cómo podrías verificar tu respuesta sin calcular de nuevo?`,
+      `¿Cuántos ceros tendría el resultado si la operación fuera ${expr.includes("×")?"÷":"×"}?`,
+      `¿Este método funciona con cualquier número que termine en cero?`,
+    ]);
+  }
+  if (gameId === "orden") {
+    return pick([
+      `¿Podrías construir un número más grande que todos los de la lista? ¿Cómo?`,
+      `¿Y uno más chico que todos? ¿Cuál sería?`,
+      `¿Cuánto tendría que cambiar el número más chico para ser mayor que el segundo?`,
+    ]);
+  }
+  if (gameId === "falta") {
+    return pick([
+      `¿Hay alguna otra forma de verificar que tu respuesta es correcta?`,
+      `¿Podés armar otra ecuación parecida usando los mismos números?`,
+      `¿Qué operación usaste para encontrar el número que faltaba?`,
+    ]);
+  }
+  return "¿Cómo llegaste a ese resultado?";
+}
+
+// ─── DESIGN ───────────────────────────────────────────────────────────────
 const T = {
   white:"#FFFFFF", bg:"#F8FAFC", border:"#E2E8F0",
   text:"#1E293B", muted:"#64748B", hint:"#94A3B8",
@@ -368,7 +440,7 @@ const T = {
 const S = {
   page:(bg=T.bg)=>({minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:bg,padding:20,fontFamily:"'Inter','Nunito',system-ui,sans-serif"}),
   card:{background:T.white,borderRadius:T.radius,padding:"36px 32px",maxWidth:480,width:"100%",boxShadow:"0 1px 3px rgba(0,0,0,0.06),0 4px 16px rgba(0,0,0,0.08)",border:`1px solid ${T.border}`},
-  input:{width:"100%",padding:"12px 16px",borderRadius:T.radiusSm,border:`1.5px solid ${T.border}`,fontSize:16,fontFamily:"inherit",outline:"none",boxSizing:"border-box",color:T.text,background:T.white,transition:"border-color 0.15s",display:"block"},
+  input:{width:"100%",padding:"12px 16px",borderRadius:T.radiusSm,border:`1.5px solid ${T.border}`,fontSize:16,fontFamily:"inherit",outline:"none",boxSizing:"border-box",color:T.text,background:T.white,display:"block"},
   btn:(color="#1E293B",variant="filled",ex={})=>({padding:"11px 20px",borderRadius:T.radiusSm,fontSize:14,fontWeight:600,cursor:"pointer",fontFamily:"inherit",transition:"all 0.15s",border:variant==="outline"?`1.5px solid ${color}`:"none",background:variant==="filled"?color:"transparent",color:variant==="filled"?"#fff":color,...ex}),
 };
 
@@ -379,29 +451,28 @@ function GuideModal({ slides, onClose }) {
   const isLast = step === slides.length - 1;
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(15,23,42,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20,backdropFilter:"blur(4px)" }}>
-      <div style={{ background:T.white,borderRadius:T.radius,padding:"32px 28px",maxWidth:400,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",border:`1px solid ${T.border}` }}>
-        {/* Header */}
-        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20 }}>
+      <div style={{ background:T.white,borderRadius:T.radius,padding:"32px 28px",maxWidth:420,width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)",border:`1px solid ${T.border}` }}>
+        <div style={{ display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16 }}>
           <span style={{ fontSize:12,fontWeight:600,color:T.hint,textTransform:"uppercase",letterSpacing:0.5 }}>
-            Guía ({step + 1} de {slides.length})
+            Guía ({step+1} de {slides.length})
           </span>
           <button onClick={onClose} style={{ background:"none",border:"none",cursor:"pointer",color:T.hint,fontSize:18,lineHeight:1,padding:4 }}>✕</button>
         </div>
-        {/* Progress dots */}
-        <div style={{ display:"flex",gap:6,marginBottom:24 }}>
+        {/* Progress bar */}
+        <div style={{ display:"flex",gap:4,marginBottom:24 }}>
           {slides.map((_,i)=>(
-            <div key={i} style={{ height:4,flex:1,borderRadius:99,background:i<=step?T.infoText:T.border,transition:"background 0.2s" }}/>
+            <div key={i} style={{ height:3,flex:1,borderRadius:99,background:i<=step?T.infoText:T.border,transition:"background 0.2s" }}/>
           ))}
         </div>
         {/* Content */}
-        <div style={{ background:slide.type==="question"?"#F5F3FF":T.infoBg,borderRadius:T.radiusSm,padding:"18px 20px",marginBottom:28,minHeight:80,display:"flex",alignItems:"center" }}>
+        <div style={{ background:slide.type==="question"?"#F5F3FF":T.infoBg,borderRadius:T.radiusSm,padding:"18px 20px",marginBottom:28,minHeight:72,display:"flex",alignItems:"center" }}>
           <p style={{ fontSize:17,fontWeight:slide.type==="question"?600:500,color:slide.type==="question"?"#6D28D9":T.infoText,margin:0,lineHeight:1.6 }}>
             {slide.type==="question"?"🤔 ":"💡 "}{slide.text}
           </p>
         </div>
         {/* Buttons */}
         <div style={{ display:"flex",gap:10 }}>
-          <button onClick={onClose} style={S.btn(T.border,"filled",{color:T.muted,flex:1})}>Salir</button>
+          <button onClick={onClose} style={S.btn("#F1F5F9","filled",{color:T.muted,flex:1})}>Salir</button>
           {isLast
             ? <button onClick={onClose} style={S.btn("#334155","filled",{flex:2})}>Intentar nuevamente</button>
             : <button onClick={()=>setStep(s=>s+1)} style={S.btn(T.infoText,"filled",{flex:2})}>Siguiente →</button>
@@ -412,7 +483,6 @@ function GuideModal({ slides, onClose }) {
   );
 }
 
-// ─── THINK MODAL ──────────────────────────────────────────────────────────
 function ThinkModal({ text, onClose }) {
   return (
     <div style={{ position:"fixed",inset:0,background:"rgba(15,23,42,0.65)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:20,backdropFilter:"blur(4px)" }}>
@@ -432,7 +502,7 @@ function ThinkModal({ text, onClose }) {
 function Home({ go }) {
   return (
     <div style={S.page()}>
-      <div style={{ ...S.card, textAlign:"center" }}>
+      <div style={{ ...S.card,textAlign:"center" }}>
         <div style={{ marginBottom:24 }}>
           <div style={{ fontSize:40,marginBottom:12 }}>🎓</div>
           <h1 style={{ fontSize:26,fontWeight:700,color:T.text,margin:"0 0 8px" }}>MateJuegos</h1>
@@ -535,7 +605,7 @@ function TeacherDashboard({ go }) {
                 <div><h3 style={{ margin:"0 0 4px",color:T.text,fontWeight:700 }}>{selected.name}</h3><p style={{ margin:0,color:T.hint,fontSize:12 }}>Código: <strong style={{ color:T.infoText }}>{selected.code}</strong></p></div>
                 <button onClick={()=>selectClass(selected)} style={S.btn("#F1F5F9","filled",{color:T.muted,fontSize:12})}>Actualizar</button>
               </div>
-              <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${T.border}`,paddingBottom:0 }}>
+              <div style={{ display:"flex",gap:6,marginBottom:20,borderBottom:`1px solid ${T.border}` }}>
                 {["results","games","attempts","reflections"].map(t=>(
                   <button key={t} onClick={()=>setTab(t)} style={{ ...S.btn("transparent","filled",{color:tab===t?"#3B82F6":T.muted,borderRadius:"8px 8px 0 0",borderBottom:tab===t?"2px solid #3B82F6":"2px solid transparent",padding:"8px 14px",fontSize:13}) }}>
                     {t==="results"?"Resultados":t==="games"?"Juegos":t==="attempts"?"Intentos":"Reflexiones"}
@@ -625,8 +695,7 @@ function StudentEnter({ go, setStudent }) {
         <label style={{ fontSize:13,fontWeight:600,color:T.text,display:"block",marginBottom:6 }}>Tu nombre</label>
         <input style={{ ...S.input,marginBottom:16 }} placeholder="Ej: Sofía" value={name} onChange={e=>setName(e.target.value)}/>
         <label style={{ fontSize:13,fontWeight:600,color:T.text,display:"block",marginBottom:6 }}>Código de clase</label>
-        <input style={{ ...S.input,textTransform:"uppercase",letterSpacing:4,fontSize:20,fontWeight:700,textAlign:"center",marginBottom:16 }}
-          placeholder="ABC123" maxLength={6} value={code} onChange={e=>setCode(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&enter()}/>
+        <input style={{ ...S.input,textTransform:"uppercase",letterSpacing:4,fontSize:20,fontWeight:700,textAlign:"center",marginBottom:16 }} placeholder="ABC123" maxLength={6} value={code} onChange={e=>setCode(e.target.value.toUpperCase())} onKeyDown={e=>e.key==="Enter"&&enter()}/>
         {err&&<p style={{ color:T.error,fontSize:13,margin:"0 0 12px" }}>{err}</p>}
         <button style={S.btn("#3B82F6","filled",{width:"100%",padding:"13px",fontSize:15})} onClick={enter} disabled={loading}>{loading?"Buscando...":"Ingresar"}</button>
       </div>
@@ -645,13 +714,13 @@ function GameMenu({ student, go, setGameSession }) {
       db({table:"student_progress",filters:`?class_code=eq.${student.classCode}&student_name=eq.${encodeURIComponent(student.name)}`}),
       db({table:"game_assignments",filters:`?class_code=eq.${student.classCode}`}),
     ]);
-    if(Array.isArray(prog)){const p={};prog.forEach(r=>{p[r.game_id]={level:r.level_reached,completed:r.completed};});setProgress(p);}
+    if(Array.isArray(prog)){const p={};prog.forEach(r=>{p[r.game_id]={level:r.level_reached,completed:r.completed,exercisesCompleted:r.exercises_completed};});setProgress(p);}
     if(Array.isArray(ass))setAssignments(ass);
     setLoading(false);
   };
   const isEnabled=gid=>{if(assignments.length===0)return true;const a=assignments.find(a=>a.game_id===gid);return a?a.enabled:true;};
   const getLevelStatus=(gid,lv)=>{const reached=progress[gid]?.level||1;if(lv<reached)return"done";if(lv===reached)return"current";return"locked";};
-  const startGame=(gid,lv)=>{setGameSession({gameId:gid,level:lv});go("game-player");};
+  const startGame=(gid,lv)=>{setGameSession({gameId:gid,level:lv,alreadyDone:getLevelStatus(gid,lv)==="done"});go("game-player");};
   const enabledGames=GAMES.filter(g=>isEnabled(g.id));
   return (
     <div style={{ minHeight:"100vh",background:T.bg,fontFamily:"'Inter',system-ui,sans-serif" }}>
@@ -673,10 +742,13 @@ function GameMenu({ student, go, setGameSession }) {
                   {[1,2,3,4].map(lv=>{
                     const status=getLevelStatus(game.id,lv),isLocked=status==="locked",isDone=status==="done",isCurrent=status==="current";
                     return(
-                      <button key={lv} onClick={()=>!isLocked&&startGame(game.id,lv)} style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:T.radiusSm,border:`1px solid ${isLocked?T.border:isDone?"#D1FAE5":game.color}`,background:isLocked?T.bg:isDone?"#F0FDF4":`${game.color}12`,cursor:isLocked?"not-allowed":"pointer",fontFamily:"inherit",transition:"all 0.15s" }}>
+                      <button key={lv} onClick={()=>!isLocked&&startGame(game.id,lv)}
+                        style={{ display:"flex",alignItems:"center",gap:10,padding:"10px 14px",borderRadius:T.radiusSm,border:`1px solid ${isLocked?T.border:isDone?"#D1FAE5":game.color}`,background:isLocked?T.bg:isDone?"#F0FDF4":`${game.color}12`,cursor:isLocked?"not-allowed":"pointer",fontFamily:"inherit",transition:"all 0.15s" }}>
                         <span style={{ fontSize:13,minWidth:16,color:isLocked?T.hint:isDone?T.success:game.color }}>{isLocked?"🔒":isDone?"✓":"▶"}</span>
                         <div style={{ flex:1,textAlign:"left" }}>
-                          <div style={{ fontWeight:600,fontSize:13,color:isLocked?T.hint:isDone?T.success:game.color }}>Nivel {lv} — {["Básico","Intermedio","Avanzado","Desafío"][lv-1]}</div>
+                          <div style={{ fontWeight:600,fontSize:13,color:isLocked?T.hint:isDone?T.success:game.color }}>
+                            Nivel {lv} — {["Básico","Intermedio","Avanzado","Desafío"][lv-1]}
+                          </div>
                         </div>
                         {isDone&&<span style={{ fontSize:11,color:T.success,fontWeight:600 }}>Completo</span>}
                         {isCurrent&&<span style={{ background:game.color,color:"white",borderRadius:6,padding:"2px 8px",fontSize:11,fontWeight:600 }}>Jugar</span>}
@@ -693,24 +765,43 @@ function GameMenu({ student, go, setGameSession }) {
   );
 }
 
+// ─── COMPLETED LEVEL VIEW ─────────────────────────────────────────────────
+function CompletedLevel({ student, gameSession, go }) {
+  const { gameId, level } = gameSession;
+  const game = GAMES.find(g => g.id === gameId);
+  return (
+    <div style={S.page()}>
+      <div style={{ ...S.card, textAlign:"center" }}>
+        <div style={{ width:56,height:56,background:T.successBg,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",fontSize:24 }}>✓</div>
+        <h2 style={{ fontSize:20,fontWeight:700,color:T.text,margin:"0 0 8px" }}>Ya completaste el Nivel {level}</h2>
+        <p style={{ color:T.muted,fontSize:14,margin:"0 0 28px",lineHeight:1.6 }}>Tu progreso está guardado. Podés repasar el nivel o seguir con el siguiente.</p>
+        <div style={{ display:"flex",flexDirection:"column",gap:10 }}>
+          <button onClick={()=>go("game-menu")} style={S.btn("#334155","filled",{width:"100%",padding:"13px"})}>Volver a los juegos</button>
+          <button onClick={()=>{gameSession.alreadyDone=false;go("game-player-fresh");}} style={S.btn("#F1F5F9","filled",{width:"100%",padding:"13px",color:T.muted})}>Repasar este nivel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── GAME PLAYER ──────────────────────────────────────────────────────────
 function GamePlayer({ student, gameSession, go }) {
-  const {gameId,level}=gameSession;
-  const game=GAMES.find(g=>g.id===gameId);
-  const gen=GENS[gameId];
+  const { gameId, level } = gameSession;
+  const game = GAMES.find(g => g.id === gameId);
+  const gen  = GENS[gameId];
 
   const [prob,setProb]               = useState(()=>gen(level));
   const [phase,setPhase]             = useState("question");
   const [answer,setAnswer]           = useState("");
   const [lastAnswer,setLastAnswer]   = useState("");
   const [orderSelected,setOrderSel]  = useState([]);
-  const [wrongAnswer,setWrongAnswer] = useState("");
   const [guideSlides,setGuideSlides] = useState(null);
   const [thinkText,setThinkText]     = useState(null);
   const [reflectQ,setReflectQ]       = useState("");
   const [showReflect,setShowReflect] = useState(false);
   const [reflectAns,setReflectAns]   = useState("");
   const [reflectSaved,setReflectSaved]=useState(false);
+  const [feedback,setFeedback]       = useState("");
   const [score,setScore]             = useState(0);
   const [correct,setCorrect]         = useState(0);
   const [wrong,setWrong]             = useState(0);
@@ -718,23 +809,23 @@ function GamePlayer({ student, gameSession, go }) {
   const [finished,setFinished]       = useState(false);
   const [saving,setSaving]           = useState(false);
   const [hintsUsed,setHintsUsed]     = useState(0);
-  const [feedback,setFeedback]       = useState("");
   const totalEx = useRef(0);
   const inputRef = useRef(null);
 
-  // Always focus input when question phase
   useEffect(()=>{
-    if(phase==="question") setTimeout(()=>inputRef.current?.focus(),150);
+    if(phase==="question") setTimeout(()=>inputRef.current?.focus(), 150);
   },[phase,prob]);
 
   const newProb=()=>{
     setProb(gen(level));setAnswer("");setLastAnswer("");setPhase("question");
-    setGuideSlides(null);setWrongAnswer("");setReflectAns("");setReflectSaved(false);
+    setGuideSlides(null);setReflectAns("");setReflectSaved(false);
     setShowReflect(false);setHintsUsed(0);setOrderSel([]);setFeedback("");
   };
 
+  // ── FIX: use JSON.stringify for array comparison ──
   const isCorrect=(userAns)=>{
-    if(prob.type==="order"||prob.type==="pick2") return String(userAns)===String(prob.answer);
+    if(prob.type==="order") return JSON.stringify(userAns)===JSON.stringify(prob.answer);
+    if(prob.type==="pick2") return String(userAns)===String(prob.answer);
     if(prob.flexible){const norm=s=>s.replace(/\s/g,"");return norm(String(userAns))===norm(String(prob.answer));}
     return String(userAns).trim()===String(prob.answer);
   };
@@ -748,21 +839,21 @@ function GamePlayer({ student, gameSession, go }) {
       const shouldReflect=totalEx.current%5===0;
       const showThink=totalEx.current%3===0&&!shouldReflect;
       setFeedback(prob.feedbackOk);
-      if(shouldReflect){setReflectQ(pick(["¿Cómo llegaste a ese resultado?","¿Hay otra manera de resolverlo?","¿Esto siempre va a dar lo mismo?","¿Cómo se lo explicarías a un compañero?"]));setShowReflect(true);}
+      if(shouldReflect){setReflectQ(getReflectQuestion(gameId,prob));setShowReflect(true);}
       if(showThink)setThinkText(pick(THINK_MODALS[gameId]));
       setScore(s=>s+10);setCorrect(c=>c+1);setCil(c=>c+1);
       setPhase("correct");
     } else {
-      const wa=prob.type==="order"?JSON.stringify(orderSelected):String(val!==undefined?val:answer);
-      setWrongAnswer(wa);setLastAnswer(prob.type==="order"?[...orderSelected]:answer);
-      setFeedback(prob.feedbackWrong);setWrong(c=>c+1);
+      setLastAnswer(prob.type==="order"?[...orderSelected]:answer);
+      setFeedback(prob.feedbackWrong);
+      setWrong(c=>c+1);
       setPhase("wrong");setOrderSel([]);
     }
   };
 
   const openGuide=()=>{
     setHintsUsed(h=>h+1);
-    setGuideSlides(buildGuides(gameId,level,prob,wrongAnswer));
+    setGuideSlides(buildGuides(gameId,level,prob));
     setPhase("question");
   };
 
@@ -777,6 +868,7 @@ function GamePlayer({ student, gameSession, go }) {
       setSaving(true);
       await Promise.all([
         db({table:"game_results",method:"POST",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,game_name:game.name,score,correct_count:correct,wrong_count:wrong,level_reached:level}}),
+        // Save level+1 to unlock next level
         db({table:"student_progress",method:"POST",upsertOn:"class_code,student_name,game_id",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level_reached:level+1,exercises_completed:totalEx.current,completed:level>=4,last_played:new Date().toISOString()}}),
       ]);
       setSaving(false);setFinished(true);
@@ -784,13 +876,13 @@ function GamePlayer({ student, gameSession, go }) {
   };
 
   const saveAndExit=async()=>{
+    // Save current progress without advancing level
     await db({table:"student_progress",method:"POST",upsertOn:"class_code,student_name,game_id",body:{class_code:student.classCode,student_name:student.name,game_id:gameId,level_reached:level,exercises_completed:totalEx.current,completed:false,last_played:new Date().toISOString()}});
     go("game-menu");
   };
 
   const pct=Math.min((cil/5)*100,100);
 
-  // ── FINISHED ──
   if(finished) return (
     <div style={S.page()}>
       {thinkText&&<ThinkModal text={thinkText} onClose={()=>setThinkText(null)}/>}
@@ -814,7 +906,6 @@ function GamePlayer({ student, gameSession, go }) {
     <div style={{ minHeight:"100vh",background:`${game.color}08`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"'Inter',system-ui,sans-serif" }}>
       <style>{`@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}`}</style>
 
-      {/* Modals */}
       {guideSlides&&<GuideModal slides={guideSlides} onClose={()=>setGuideSlides(null)}/>}
       {thinkText&&<ThinkModal text={thinkText} onClose={()=>setThinkText(null)}/>}
 
@@ -831,7 +922,6 @@ function GamePlayer({ student, gameSession, go }) {
         {game.name} · Nivel {level}
       </div>
 
-      {/* Progress */}
       <div style={{ width:"100%",maxWidth:480,marginBottom:16 }}>
         <div style={{ background:T.border,borderRadius:99,height:6,overflow:"hidden" }}>
           <div style={{ height:"100%",background:game.color,width:`${pct}%`,borderRadius:99,transition:"width 0.4s" }}/>
@@ -841,22 +931,20 @@ function GamePlayer({ student, gameSession, go }) {
 
       <div style={{ ...S.card,maxWidth:480,animation:"fadeUp 0.2s ease" }}>
 
-        {/* ── QUESTION ── */}
+        {/* QUESTION */}
         {phase==="question"&&(
           <>
             <p style={{ textAlign:"center",color:T.hint,fontSize:12,fontWeight:600,textTransform:"uppercase",letterSpacing:1,marginBottom:20 }}>
-              {prob.type==="order"?(prob.question||"Ordená de menor a mayor"):prob.type==="pick2"?(prob.question||"¿Cuál es mayor?"):prob.type==="choice"?"Elegí el símbolo correcto":"Resolvé"}
+              {prob.type==="order"?(prob.question||"Ordená de menor a mayor"):prob.type==="pick2"?(prob.question||"¿Cuál es mayor?"):"Resolvé"}
             </p>
 
-            {/* INPUT */}
             {prob.type==="input"&&(
               <>
                 <div style={{ textAlign:"center",marginBottom:20 }}>
-                  <p style={{ fontSize:prob.expr.length>40?16:24,fontWeight:700,color:T.text,margin:0,lineHeight:1.5 }}>
-                    {prob.expr.includes("___")||prob.expr.includes("?")?prob.expr:`${prob.expr} =`}
+                  <p style={{ fontSize:prob.expr.length>45?15:24,fontWeight:700,color:T.text,margin:0,lineHeight:1.5 }}>
+                    {prob.expr.includes("___")||prob.expr.endsWith("?")?prob.expr:`${prob.expr} =`}
                   </p>
                 </div>
-                {/* Always visible input — no fake line */}
                 <input
                   ref={inputRef}
                   type="text"
@@ -866,7 +954,7 @@ function GamePlayer({ student, gameSession, go }) {
                   autoFocus
                   onChange={e=>setAnswer(prob.flexible?e.target.value:e.target.value.replace(/[^0-9]/g,""))}
                   onKeyDown={e=>e.key==="Enter"&&answer.trim()&&checkAnswer()}
-                  style={{ ...S.input,fontSize:18,fontWeight:700,textAlign:"center",marginBottom:12,borderColor:answer?game.color:T.border }}
+                  style={{ ...S.input,fontSize:18,fontWeight:700,textAlign:"center",marginBottom:12,borderColor:answer?game.color:T.border,outline:"none" }}
                 />
                 <button onClick={()=>answer.trim()&&checkAnswer()} disabled={!answer.trim()}
                   style={S.btn(answer.trim()?game.color:"#E2E8F0","filled",{width:"100%",color:answer.trim()?"white":T.hint,cursor:answer.trim()?"pointer":"not-allowed"})}>
@@ -875,14 +963,14 @@ function GamePlayer({ student, gameSession, go }) {
               </>
             )}
 
-            {/* PICK 2 — visual comparison, no < > */}
+            {/* PICK 2 — visual, no < > */}
             {prob.type==="pick2"&&(
               <>
-                <p style={{ textAlign:"center",fontSize:14,color:T.muted,marginBottom:20 }}>{prob.question}</p>
+                <p style={{ textAlign:"center",fontSize:15,color:T.text,fontWeight:600,marginBottom:24 }}>{prob.question}</p>
                 <div style={{ display:"flex",gap:16,justifyContent:"center" }}>
                   {prob.options.map((n,i)=>(
                     <button key={i} onClick={()=>checkAnswer(String(n))}
-                      style={{ flex:1,padding:"24px 16px",borderRadius:T.radius,border:`2px solid ${T.border}`,background:T.white,cursor:"pointer",fontFamily:"inherit",transition:"all 0.15s",fontSize:28,fontWeight:700,color:T.text }}>
+                      style={{ flex:1,padding:"28px 16px",borderRadius:T.radius,border:`2px solid ${T.border}`,background:T.white,cursor:"pointer",fontFamily:"inherit",transition:"all 0.15s",fontSize:32,fontWeight:700,color:T.text,":hover":{borderColor:game.color} }}>
                       {n}
                     </button>
                   ))}
@@ -900,7 +988,7 @@ function GamePlayer({ student, gameSession, go }) {
                   {prob.nums.map((n,i)=>{
                     const selIdx=orderSelected.indexOf(n),sel=selIdx!==-1;
                     return(
-                      <button key={i} onClick={()=>{if(sel)setOrderSel(orderSelected.filter(x=>x!==n));else setOrderSel([...orderSelected,n]);}}
+                      <button key={`${n}-${i}`} onClick={()=>{if(sel)setOrderSel(orderSelected.filter(x=>x!==n));else setOrderSel([...orderSelected,n]);}}
                         style={S.btn(sel?game.color:"#F1F5F9","filled",{color:sel?"white":T.text,padding:"12px 16px",fontSize:18,fontWeight:700,minWidth:80,position:"relative"})}>
                         {n}
                         {sel&&<span style={{ position:"absolute",top:-8,right:-8,background:"#1E293B",color:"white",borderRadius:99,width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700 }}>{selIdx+1}</span>}
@@ -921,7 +1009,7 @@ function GamePlayer({ student, gameSession, go }) {
           </>
         )}
 
-        {/* ── WRONG ── */}
+        {/* WRONG */}
         {phase==="wrong"&&(
           <div style={{ animation:"fadeUp 0.2s ease" }}>
             <div style={{ background:T.errorBg,border:`1px solid #FECACA`,borderRadius:T.radiusSm,padding:"14px 16px",marginBottom:20 }}>
@@ -934,14 +1022,14 @@ function GamePlayer({ student, gameSession, go }) {
                 if(prob.type==="order")setOrderSel(Array.isArray(lastAnswer)?[...lastAnswer]:[]);
                 else setAnswer(typeof lastAnswer==="string"?lastAnswer:"");
                 setPhase("question");
-              }} style={{ ...S.btn("transparent","filled",{width:"100%",color:T.muted,fontSize:13}),textDecoration:"underline" }}>
+              }} style={{ background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:13,textDecoration:"underline",padding:"6px 0",fontFamily:"inherit" }}>
                 ← Volver y revisar mi respuesta
               </button>
             </div>
           </div>
         )}
 
-        {/* ── CORRECT ── */}
+        {/* CORRECT */}
         {phase==="correct"&&(
           <div style={{ animation:"fadeUp 0.2s ease" }}>
             <div style={{ background:T.successBg,border:`1px solid #BBF7D0`,borderRadius:T.radiusSm,padding:"14px 16px",marginBottom:20 }}>
@@ -949,7 +1037,7 @@ function GamePlayer({ student, gameSession, go }) {
             </div>
             {showReflect&&(
               <div style={{ background:"#F5F3FF",border:`1px solid #DDD6FE`,borderRadius:T.radiusSm,padding:"16px",marginBottom:16 }}>
-                <p style={{ fontSize:13,fontWeight:700,color:"#6D28D9",margin:"0 0 10px" }}>{reflectQ}</p>
+                <p style={{ fontSize:13,fontWeight:700,color:"#6D28D9",margin:"0 0 10px",lineHeight:1.5 }}>{reflectQ}</p>
                 {!reflectSaved?(
                   <>
                     <textarea placeholder="Escribí tu respuesta (optativo)..." value={reflectAns} onChange={e=>setReflectAns(e.target.value)}
@@ -989,14 +1077,25 @@ export default function App() {
   const [teacher,setTeacher]         = useState(null);
   const [student,setStudent]         = useState(null);
   const [gameSession,setGameSession] = useState(null);
+
+  const go = (scr) => {
+    // If student tries to enter a completed level, show summary instead
+    if(scr==="game-player"&&gameSession?.alreadyDone){
+      setScreen("completed-level");
+      return;
+    }
+    setScreen(scr);
+  };
+
   return (
     <>
-      {screen==="home"              &&<Home go={setScreen}/>}
-      {screen==="teacher-login"     &&<TeacherLogin go={setScreen} setTeacher={setTeacher}/>}
-      {screen==="teacher-dashboard" &&<TeacherDashboard go={setScreen}/>}
-      {screen==="student-enter"     &&<StudentEnter go={setScreen} setStudent={setStudent}/>}
-      {screen==="game-menu"         &&student&&<GameMenu student={student} go={setScreen} setGameSession={setGameSession}/>}
-      {screen==="game-player"       &&student&&gameSession&&<GamePlayer student={student} gameSession={gameSession} go={setScreen}/>}
+      {screen==="home"              &&<Home go={go}/>}
+      {screen==="teacher-login"     &&<TeacherLogin go={go} setTeacher={setTeacher}/>}
+      {screen==="teacher-dashboard" &&<TeacherDashboard go={go}/>}
+      {screen==="student-enter"     &&<StudentEnter go={go} setStudent={setStudent}/>}
+      {screen==="game-menu"         &&student&&<GameMenu student={student} go={go} setGameSession={setGameSession}/>}
+      {screen==="completed-level"   &&student&&gameSession&&<CompletedLevel student={student} gameSession={gameSession} go={(s)=>{if(s==="game-player-fresh"){setScreen("game-player");}else setScreen(s);}}/>}
+      {screen==="game-player"       &&student&&gameSession&&<GamePlayer student={student} gameSession={gameSession} go={go}/>}
     </>
   );
 }
